@@ -1,0 +1,3 @@
+#!/bin/bash
+arg=$1
+./riuc NODE2 hcm "Motorola radio" 0 udp:192.168.2.50:1994 udp:192.168.2.50:3991 NODE1 $arg
