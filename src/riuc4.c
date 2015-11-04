@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
 
     gm_cs = argv[5];
     gmc_cs = argv[6];
-    n = sprintf(adv_cs, "udp:0.0.0.0:%d", adv_port);
+    n = sprintf(adv_cs, "udp:192.168.2.50:%d", adv_port);
     adv_cs[n] = '\0';
     n = sprintf(gb_cs, "udp:%s:%d",GB_MIP, gb_port);
     gb_cs[n] = '\0';
@@ -83,14 +83,11 @@ int main(int argc, char *argv[]) {
 
         ansi_copy_str(gm_cs_tmp, gm_cs);
         ansi_copy_str(adv_cs_tmp, adv_cs);
-/*
-        ansi_copy_str(gmc_cs_tmp, gmc_cs);
-        len = strlen(gmc_cs_tmp);
-        gmc_cs_tmp[len-1] = i + 1 + '0';
-        printf("gmc_cs = %s\n", gmc_cs_tmp);
-*/
-        n = sprintf(gmc_cs_tmp, "udp:192.168.2.50:399%d", i+1);
 
+        n = sprintf(gmc_cs_tmp, "udp:192.168.2.50:399%d", i + 1);
+        gmc_cs_tmp[n] = '\0';
+
+       // printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
         riuc_data.node[i].on_adv_info_f = &on_adv_info;
 
