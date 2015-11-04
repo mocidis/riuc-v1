@@ -7,7 +7,8 @@
 
 typedef struct riuc_data_s riuc_data_t;
 struct riuc_data_s {
-    node_t node;
+    node_t node[4];
+
     gb_sender_t gb_sender;
     riuc4_t riuc4;
     serial_t serial;
@@ -21,11 +22,13 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
     SHOW_LOG(4, fprintf(stdout, "on_riuc4_status port:%d, signal:%s\n", port, RIUC4_SIGNAL_NAME[signal]));
     switch(signal) {
         case RIUC_SIGNAL_SQ:
-            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node.id, port, 1);
+            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->sq);
             break;
         case RIUC_SIGNAL_TX:
+            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->tx);
             break;
         case RIUC_SIGNAL_RX:
+            gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->rx);
             break;
         default:
             EXIT_IF_TRUE(1, "Unknow signal\n");
@@ -53,10 +56,12 @@ int main(int argc, char *argv[]) {
     char *gmc_cs;
     char adv_cs[30];
     char gb_cs[30];
+    char gm_cs_tmp[30], gmc_cs_tmp[30], adv_cs_tmp[30];
 
     int adv_port = ADV_PORT;
     int gb_port = GB_PORT; 
-    int n;
+
+    int i, len, n;
     
     SET_LOG_LEVEL(4);
 
@@ -69,9 +74,28 @@ int main(int argc, char *argv[]) {
 
     SHOW_LOG(5, fprintf(stdout, "%s - %s - %s - %s - %s - %s - %s - %s - %s\n",argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], adv_cs, gb_cs, argv[8]));
 
-    memset(&riuc_data.node, 0, sizeof(riuc_data.node));
-    riuc_data.node.on_adv_info_f = &on_adv_info;
-    node_init(&riuc_data.node, argv[1], argv[2], argv[3], atoi(argv[4]), gm_cs, gmc_cs, adv_cs);
+
+    for (i = 0;i < 4; i++) {
+
+        memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
+        memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
+        memset(adv_cs_tmp, 0, sizeof(adv_cs_tmp));
+
+        ansi_copy_str(gm_cs_tmp, gm_cs);
+        ansi_copy_str(adv_cs_tmp, adv_cs);
+/*
+        ansi_copy_str(gmc_cs_tmp, gmc_cs);
+        len = strlen(gmc_cs_tmp);
+        gmc_cs_tmp[len-1] = i + 1 + '0';
+        printf("gmc_cs = %s\n", gmc_cs_tmp);
+*/
+        n = sprintf(gmc_cs_tmp, "udp:192.168.2.50:399%d", i+1);
+
+        memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
+        riuc_data.node[i].on_adv_info_f = &on_adv_info;
+
+        node_init(&riuc_data.node[i], argv[1], argv[2], argv[3], i, gm_cs_tmp, gmc_cs_tmp, adv_cs_tmp);
+    }
 
     memset(&riuc_data.gb_sender, 0, sizeof(riuc_data.gb_sender));
     n = sprintf(gb_cs, "udp:%s:%d", GB_MIP, GB_PORT);
@@ -85,7 +109,8 @@ int main(int argc, char *argv[]) {
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     while (1) {
-        node_register(&riuc_data.node);
+        for (i = 0; i < 4; i++)
+            node_register(&riuc_data.node[i]);
         usleep(5*1000*1000);
     }
     return 0;

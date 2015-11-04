@@ -1,6 +1,6 @@
 .PHONY: all clean
 APP:=riuc
-APP_SRCS:=riuc.c
+APP_SRCS:=riuc4.c
 
 C_DIR:=../common
 C_SRCS:=ansi-utils.c
