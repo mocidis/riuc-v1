@@ -1,6 +1,9 @@
 .PHONY: all clean
-APP:=riuc
-APP_SRCS:=riuc4.c
+RIUC4:=riuc4
+RIUC4_SRCS:=$(RIUC4).c
+
+RIUC:=riuc
+RIUC_SRCS:=$(RIUC).c
 
 C_DIR:=../common
 C_SRCS:=ansi-utils.c
@@ -34,7 +37,7 @@ CFLAGS+=-I$(SERIAL_DIR)/include
 
 LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread
 
-all: gen-gm gen-gmc gen-adv gen-gb  $(APP)
+all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
 gen-gm: $(PROTOCOL_DIR)/$(GM_P)
 	mkdir -p gen
@@ -56,7 +59,10 @@ gen-gb: $(PROTOCOL_DIR)/$(GB_P)
 	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
-$(APP): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(APP_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o)
+$(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o)
+	gcc -o $@ $^ $(LIBS)
+
+$(RIUC4): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC4_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o)
 	gcc -o $@ $^ $(LIBS)
 
 $(NODE_SRCS:.c=.o): %.o: $(NODE_DIR)/src/%.c
@@ -67,10 +73,12 @@ $(C_SRCS:.c=.o): %.o: $(C_DIR)/src/%.c
 	gcc -c -o $@ $^ $(CFLAGS)
 $(ANSI_O_SRCS:.c=.o): %.o: $(ANSI_O_DIR)/src/%.c
 	gcc -c -o $@ $^ $(CFLAGS)
-$(APP_SRCS:.c=.o): %.o: src/%.c
+$(RIUC_SRCS:.c=.o): %.o: src/%.c
+	gcc -c -o $@ $^ $(CFLAGS)
+$(RIUC4_SRCS:.c=.o): %.o: src/%.c
 	gcc -c -o $@ $^ $(CFLAGS)
 $(SERIAL_SRCS:.c=.o) : %.o : $(SERIAL_DIR)/src/%.c
 	gcc -o $@ -c $< $(CFLAGS)
 
 clean:
-	rm -fr *.o gen gen-gm gen-gmc gen-adv gen-gb $(APP)
+	rm -fr *.o gen gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
