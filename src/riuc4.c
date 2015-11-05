@@ -36,7 +36,8 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 }
 
 void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
-    SHOW_LOG(4, fprintf(stdout,"Received: ID = %s\nSDP addr %s:%d\n", request->adv_info.info_id, request->adv_info.sdp_mip, request->adv_info.sdp_port));
+    node_t *node = adv_server->user_data;
+    SHOW_LOG(4, fprintf(stdout,"%s received: ID = %s\nSDP addr %s:%d\n", node->id, request->adv_info.info_id, request->adv_info.sdp_mip, request->adv_info.sdp_port));
     //Join to mutilcast add
     //Create stream
     //Start stream
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     gm_cs = argv[5];
     gmc_cs = argv[6];
-    n = sprintf(adv_cs, "udp:192.168.2.50:%d", adv_port);
+    n = sprintf(adv_cs, "udp:0.0.0.0:%d", adv_port);
     adv_cs[n] = '\0';
     n = sprintf(gb_cs, "udp:%s:%d",GB_MIP, gb_port);
     gb_cs[n] = '\0';
@@ -76,7 +77,6 @@ int main(int argc, char *argv[]) {
 
 
     for (i = 0;i < 4; i++) {
-
         memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
         memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
         memset(adv_cs_tmp, 0, sizeof(adv_cs_tmp));
@@ -90,6 +90,7 @@ int main(int argc, char *argv[]) {
        // printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
         riuc_data.node[i].on_adv_info_f = &on_adv_info;
+        riuc_data.node[i].adv_server.user_data = &riuc_data.node[i];
 
         node_init(&riuc_data.node[i], argv[1], argv[2], argv[3], i, gm_cs_tmp, gmc_cs_tmp, adv_cs_tmp);
     }

@@ -34,6 +34,7 @@ CFLAGS+=-I$(PROTOCOLS_DIR)/include
 CFLAGS+=-I$(GEN_DIR)
 CFLAGS+=-I$(NODE_DIR)/include
 CFLAGS+=-I$(SERIAL_DIR)/include
+CFLAGS+=-D__ICS_INTEL__
 
 LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread
 
