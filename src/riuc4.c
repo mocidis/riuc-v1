@@ -37,7 +37,9 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 
 void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
     node_t *node = adv_server->user_data;
-    SHOW_LOG(4, fprintf(stdout,"%s received: ID = %s\nSDP addr %s:%d\n", node->id, request->adv_info.info_id, request->adv_info.sdp_mip, request->adv_info.sdp_port));
+    if (0 == strcmp(node->id, request->adv_info.adv_guest)) {   
+        SHOW_LOG(4, fprintf(stdout,"%s received from %s\nSDP addr %s:%d\n", request->adv_info.adv_guest, request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port));
+    }
     //Join to mutilcast add
     //Create stream
     //Start stream
