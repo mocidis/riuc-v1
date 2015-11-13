@@ -6,7 +6,7 @@ RIUC:=riuc
 RIUC_SRCS:=$(RIUC).c
 
 C_DIR:=../common
-C_SRCS:=ansi-utils.c
+C_SRCS:=ansi-utils.c my-pjlib-utils.c
 
 USERVER_DIR:=../userver
 
@@ -18,6 +18,9 @@ GB_P:=gb-proto.u
 
 NODE_DIR:=../group-man
 NODE_SRCS:=node.c gb-sender.c
+
+EP_DIR:=../media-endpoint
+EP_SRCS:=endpoint.c
 
 GEN_DIR:=gen
 GEN_SRCS:=gm-client.c gmc-server.c adv-server.c gb-client.c
@@ -34,6 +37,7 @@ CFLAGS+=-I$(PROTOCOLS_DIR)/include
 CFLAGS+=-I$(GEN_DIR)
 CFLAGS+=-I$(NODE_DIR)/include
 CFLAGS+=-I$(SERIAL_DIR)/include
+CFLAGS+=-I$(EP_DIR)/include
 CFLAGS+=-D__ICS_INTEL__
 
 LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread
@@ -60,10 +64,10 @@ gen-gb: $(PROTOCOL_DIR)/$(GB_P)
 	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
-$(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o)
+$(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o)
 	gcc -o $@ $^ $(LIBS)
 
-$(RIUC4): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC4_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o)
+$(RIUC4): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC4_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o)
 	gcc -o $@ $^ $(LIBS)
 
 $(NODE_SRCS:.c=.o): %.o: $(NODE_DIR)/src/%.c
@@ -80,6 +84,7 @@ $(RIUC4_SRCS:.c=.o): %.o: src/%.c
 	gcc -c -o $@ $^ $(CFLAGS)
 $(SERIAL_SRCS:.c=.o) : %.o : $(SERIAL_DIR)/src/%.c
 	gcc -o $@ -c $< $(CFLAGS)
-
+$(EP_SRCS:.c=.o) : %.o : $(EP_DIR)/src/%.c
+	gcc -o $@ -c $< $(CFLAGS)
 clean:
 	rm -fr *.o gen gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)

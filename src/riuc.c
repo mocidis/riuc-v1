@@ -31,7 +31,7 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
             EXIT_IF_TRUE(1, "Unknow signal\n");
     } 
 }
-
+/*
 void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
     SHOW_LOG(4, fprintf(stdout,"Received from %s\nSDP addr %s:%d\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port));
     //Join to mutilcast add
@@ -39,7 +39,7 @@ void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
     //Start stream
     //call gb_sender_report_tx
 }
-
+*/
 void usage(char *app) {
     printf("usage: %s <id> <location> <desc> <radio_port> <gm_cs> <gmc_cs> <guest> <serial_file>\n", app);
     exit(-1);
