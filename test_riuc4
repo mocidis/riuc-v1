@@ -1,4 +1,10 @@
 #!/bin/bash
+if [ $# -lt 2 ] ; then
+    echo "./test_riu4 <serial_file> <node_ip>"
+    exit -1
+fi
+
 arg=$1
-./riuc4 RIUC1 hcm "Motorola radio" 0 udp:192.168.2.50:1994 udp:192.168.2.50:3991 OIUC1 $arg
+node_ip=$2
+./riuc4 RIUC1 hcm "Motorola radio" 0 udp:$node_ip:1994 udp:$node_ip:3991 OIUC1 $arg
 #  %s <id> <location> <desc> <radio_port> <gm_cs> <gmc_cs> <guest> <serial_file>

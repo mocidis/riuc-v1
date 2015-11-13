@@ -18,7 +18,7 @@ struct riuc_data_s {
 riuc_data_t riuc_data;
 
 void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
-    SHOW_LOG(4, fprintf(stdout, "on_riuc4_status port:%d, signal:%s\n", port, RIUC4_SIGNAL_NAME[signal]));
+    SHOW_LOG(4, "on_riuc4_status port:%d, signal:%s\n", port, RIUC4_SIGNAL_NAME[signal]);
     switch(signal) {
         case RIUC_SIGNAL_SQ:
             gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node.id, port, 1);
@@ -33,7 +33,7 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 }
 
 void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
-    SHOW_LOG(4, fprintf(stdout,"Received from %s\nSDP addr %s:%d\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port));
+    SHOW_LOG(4, "Received from %s\nSDP addr %s:%d\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
     //Join to mutilcast add
     //Create stream
     //Start stream
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     n = sprintf(gb_cs, "udp:%s:%d",GB_MIP, gb_port);
     gb_cs[n] = '\0';
 
-    SHOW_LOG(5, fprintf(stdout, "%s - %s - %s - %s - %s - %s - %s - %s - %s\n",argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], adv_cs, gb_cs, argv[8]));
+    SHOW_LOG(5, "%s - %s - %s - %s - %s - %s - %s - %s - %s\n",argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], adv_cs, gb_cs, argv[8]);
 
     adv_server_t adv_server;
     memset(&adv_server, 0, sizeof(adv_server));
