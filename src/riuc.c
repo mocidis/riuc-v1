@@ -1,70 +1,180 @@
 #include "node.h"
 #include <stdio.h>
 #include "ansi-utils.h"
+#include "my-pjlib-utils.h"
 #include "gb-sender.h"
 #include "proto-constants.h"
 #include "riuc4_uart.h"
 
+#include <pjmedia-audiodev/audiodev.h>
+#include <pjmedia-audiodev/audiotest.h>
+
 typedef struct riuc_snd_device_s riuc_snd_device_t;
 typedef struct riuc_data_s riuc_data_t;
 
-struct riuc_snd_device_s {
-    char id[30];
-    int snd_indx;
-};
+#define MAX_NODE 1
 
 struct riuc_data_s {
-    node_t node;
+    node_t node[MAX_NODE];
     gb_sender_t gb_sender;
     riuc4_t riuc4;
     serial_t serial;
-    riuc_snd_device_t snd_device[4];
 
     char serial_file[30];
 };
 
 riuc_data_t riuc_data;
 
-#if 0
-void set_snd_device(riuc_data_t *riuc_data, int idx) {
-    check_snd_device(idx);
-    for (i = 0; i < 4; i++ ) {
-        if (is_used)
+static void list_devices(void)
+{
+    unsigned dev_count;
+    unsigned i;
+    pj_status_t status;
+    
+    dev_count = pjmedia_aud_dev_count();
+    if (dev_count == 0) {
+	SHOW_LOG(3, "No devices found");
+    return;
+    }
+
+    SHOW_LOG(3, "Found %d devices:\n", dev_count);
+
+    for (i=0; i<dev_count; ++i) {
+        pjmedia_aud_dev_info info;
+
+        status = pjmedia_aud_dev_get_info(i, &info);
+        if (status != PJ_SUCCESS)
+            continue;
+
+        SHOW_LOG(3, " %2d: %s [%s] (%d/%d)\n", i, info.driver, info.name, info.input_count, info.output_count);
     }
 }
-#endif
 
+int check_snd_device(int idx) {
+    pjmedia_aud_param param;
+    pjmedia_aud_test_results result;
+    pj_status_t status;
+
+    CHECK(__FILE__, pjmedia_aud_dev_default_param(idx, &param));
+
+    unsigned ptime = 500;
+
+    param.dir = PJMEDIA_DIR_CAPTURE_PLAYBACK;
+    param.rec_id = idx;
+    param.play_id = idx;
+    param.clock_rate = 8000;
+    param.channel_count = 2;
+
+    param.samples_per_frame = param.clock_rate * param.channel_count * ptime / 1000;
+
+    /* Latency settings */
+    param.flags |= (PJMEDIA_AUD_DEV_CAP_INPUT_LATENCY | PJMEDIA_AUD_DEV_CAP_OUTPUT_LATENCY);
+    param.input_latency_ms = PJMEDIA_SND_DEFAULT_REC_LATENCY;
+    param.output_latency_ms = PJMEDIA_SND_DEFAULT_PLAY_LATENCY;
+
+    SHOW_LOG(3,"Performing test for device %d...\n", idx);
+
+    status = pjmedia_aud_test(&param, &result);
+    if (status != PJ_SUCCESS) {
+        SHOW_LOG(3, "Device %d: Test has completed with error\n", idx, status);
+        return 0;
+    }
+    else {
+        SHOW_LOG(3, "Device %d...OK\n", idx);
+        return 1;
+    }
+}
+
+int is_device_used(riuc_data_t *riuc_data, int device_idx) {
+    int i;
+
+    for (i = 0; i < MAX_NODE; i++) {
+        if (device_idx == riuc_data->node[i].streamer_dev_idx || device_idx == riuc_data->node[i].receiver_dev_idx) {
+            return 1;
+        }
+    }
+    SHOW_LOG(3, "Noone use device=%d\n", device_idx);
+    return 0;
+}
+
+void set_snd_device(riuc_data_t *riuc_data) {
+    int idx = 0, node_idx, device_idx;
+    unsigned MAX_DEVICE;
+
+    MAX_DEVICE = pjmedia_aud_dev_count();
+
+    list_devices();
+
+    SHOW_LOG(3, "MAX_NODE = %d, MAX_DEVICE = %d\n", MAX_NODE, MAX_DEVICE);
+
+    for (node_idx = 0; node_idx < MAX_NODE; node_idx ++) {
+        for (device_idx = idx; device_idx < MAX_DEVICE; device_idx++) {
+            if (check_snd_device(device_idx) && !is_device_used(riuc_data, device_idx)) {
+                SHOW_LOG(3, "********* Found Device %d available**********\n", device_idx);
+                riuc_data->node[idx].streamer_dev_idx = device_idx;
+                riuc_data->node[idx].receiver_dev_idx = device_idx;
+                break;
+            }
+        }
+        idx = device_idx;
+    }
+}
 void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
     SHOW_LOG(4, "on_riuc4_status port:%d, signal:%s\n", port, RIUC4_SIGNAL_NAME[signal]);
+
+    static pj_thread_desc s_desc;
+    static pj_thread_t *s_thread;
+    ANSI_CHECK(__FILE__, pj_thread_register("adv_server", s_desc, &s_thread));
+
     switch(signal) {
         case RIUC_SIGNAL_SQ:
-            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node.id, port, 1);
+            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[0].id, port, 1);
+            if (ustatus->sq == 1) {
+                node_start_session(&riuc_data.node[0]);
+                riuc4_enable_rx(&riuc_data.riuc4, port);
+            }
+            else {
+                node_stop_session(&riuc_data.node[0]);
+                riuc4_disable_rx(&riuc_data.riuc4, port);
+            }
             break;
         case RIUC_SIGNAL_TX:
+            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->tx);
             break;
         case RIUC_SIGNAL_RX:
+            gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->rx);
             break;
         default:
             EXIT_IF_TRUE(1, "Unknow signal\n");
     } 
 }
-/*
-void on_adv_info(adv_server_t *adv_server, adv_request_t *request) {
-    SHOW_LOG(4, "Received from %s\nSDP addr %s:%d\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
-    //Join to mutilcast add
-    //Create stream
-    //Start stream
-    //call gb_sender_report_tx
+
+void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
+    node_t *node = adv_server->user_data;
+    SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
+    if(!node_has_media(node)) {
+        SHOW_LOG(1, "Node does not have media endpoints configured\n");
+        return;
+    }
+    if( request->adv_info.sdp_port > 0 ) {
+        receiver_stop(node->receiver);
+        receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
+        receiver_start(node->receiver);
+        riuc4_enable_tx(&riuc_data.riuc4, node->radio_port);
+    }
+    else {
+        receiver_stop(node->receiver);
+        riuc4_disable_tx(&riuc_data.riuc4, node->radio_port);
+    }
 }
-*/
 
 static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node) {
     memset(adv_server, 0, sizeof(*adv_server));
 
-    adv_server->on_request_f = &on_adv_info;
+    adv_server->on_request_f = &on_adv_info_riuc;
     adv_server->on_open_socket_f = &on_open_socket_adv_server;
     adv_server->user_data = node;
-    
+
     adv_server_init(adv_server, adv_cs);
     adv_server_start(adv_server);
 }
@@ -73,7 +183,7 @@ void *auto_register(void *node_data) {
     node_t *node = (node_t *)node_data;   
     while (1) {
         node_register(node);
-        node_invite(&riuc_data.node, "OIUC");
+        node_invite(node, "OIUC");
         usleep(5*1000*1000);
     }
 }
@@ -115,53 +225,66 @@ int main(int argc, char *argv[]) {
 
     SHOW_LOG(5, "%s - %s - %s - %s - %s - %s - %s - %s - %s\n",argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], adv_cs, gb_cs, argv[8]);
 
-    memset(&adv_server, 0, sizeof(adv_server));
+    /*------------ NODE ------------*/
+    memset(&riuc_data.node[0], 0, sizeof(riuc_data.node[0]));
+    init_adv_server(&adv_server, adv_cs, &riuc_data.node[0]);
+    node_init(&riuc_data.node[0], argv[1], argv[2], argv[3], atoi(argv[4]), gm_cs, gmc_cs, adv_cs);
+    node_add_adv_server(&riuc_data.node[0], &adv_server);
 
-    memset(&riuc_data.node, 0, sizeof(riuc_data.node));
-    init_adv_server(&adv_server, adv_cs, &riuc_data.node);
-    node_init(&riuc_data.node, argv[1], argv[2], argv[3], atoi(argv[4]), gm_cs, gmc_cs, adv_cs);
-    node_add_adv_server(&riuc_data.node, &adv_server);
+    SHOW_LOG(2, "INIT NODE DONE...\n");
 
+    /*----------- GB --------------*/
     memset(&riuc_data.gb_sender, 0, sizeof(riuc_data.gb_sender));
     n = sprintf(gb_cs, "udp:%s:%d", GB_MIP, GB_PORT);
     gb_cs[n] = '\0';
     gb_sender_create(&riuc_data.gb_sender, gb_cs);
 
-    // Serial RIUC4 interface for radios ...
+    SHOW_LOG(2, "INIT GB SENDER DONE...\n");
+    /*----------- RIUC4 --------------*/
     memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
     strncpy(riuc_data.serial_file, argv[8], strlen(argv[8]));
     riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
-    //Streame
+    SHOW_LOG(2, "INIT RIUC4 DONE...\n");
+    /*----------- STREAM --------------*/
     pj_init();
-
     pj_caching_pool_init(&cp, NULL, 1024);
-    node_media_config(&riuc_data.node, &streamer, &receiver);
-    riuc_data.node.streamer->pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
-    pjmedia_endpt_create(&cp.factory, NULL, 1, &riuc_data.node.streamer->ep);
-    pjmedia_codec_g711_init(riuc_data.node.streamer->ep);
 
-    streamer_init(riuc_data.node.streamer, riuc_data.node.streamer->ep, riuc_data.node.streamer->pool);
-    streamer_config_dev_source(riuc_data.node.streamer, 2);
+    node_media_config(&riuc_data.node[0], &streamer, &receiver);
+    riuc_data.node[0].streamer->pool = riuc_data.node[0].receiver->pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
 
-    pthread_create(&thread, NULL, auto_register, &riuc_data.node);   
-    
+    pjmedia_endpt_create(&cp.factory, NULL, 1, &riuc_data.node[0].streamer->ep);
+    riuc_data.node[0].receiver->ep = riuc_data.node[0].streamer->ep;
+    pjmedia_codec_g711_init(riuc_data.node[0].streamer->ep);
+
+    streamer_init(riuc_data.node[0].streamer, riuc_data.node[0].streamer->ep, riuc_data.node[0].receiver->pool);
+    receiver_init(riuc_data.node[0].receiver, riuc_data.node[0].receiver->ep, riuc_data.node[0].receiver->pool, 2);
+
+    set_snd_device(&riuc_data);
+
+    streamer_config_dev_source(riuc_data.node[0].streamer, riuc_data.node[0].streamer_dev_idx);
+    receiver_config_dev_sink(riuc_data.node[0].receiver, riuc_data.node[0].receiver_dev_idx);
+
+    SHOW_LOG(2, "INIT STREAM DONE...\n");
+    /*---------------------------------*/
+    pthread_create(&thread, NULL, auto_register, &riuc_data.node[0]);
+
     while(1) {
         dummy = fgets(option, sizeof(option), stdin);
 
         switch(option[0]) {
             case 't':
-                node_start_session(&riuc_data.node);
+                node_start_session(&riuc_data.node[0]);
                 break;
             case 'y':
-                node_stop_session(&riuc_data.node);
+                node_stop_session(&riuc_data.node[0]);
                 break;
             case 'j':
-                node_invite(&riuc_data.node, "OIUC");
+                node_invite(&riuc_data.node[0], "OIUC");
                 break;
             case 'l':
-                node_repulse(&riuc_data.node, "OIUC");
+                node_repulse(&riuc_data.node[0], "OIUC");
                 break;
             default:
                 RETURN_IF_TRUE(1, "Unknown option\n");               
