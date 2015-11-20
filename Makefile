@@ -1,5 +1,5 @@
 .PHONY: all clean
-#RIUC4:=riuc4
+RIUC4:=riuc4
 RIUC4_SRCS:=$(RIUC4).c
 
 RIUC:=riuc

@@ -1,10 +1,12 @@
 #!/bin/bash
-if [ $# -lt 2 ] ; then
-    echo "./test_riu4 <serial_file> <node_ip>"
+if [ $# -lt 3 ] ; then
+    echo "./test_riu <serial_file> <coord_ip> <riuc_ip> <riuc_id>"
     exit -1
 fi
 
 arg=$1
-node_ip=$2
-./riuc4 RIUC1 hcm "Motorola radio" 0 udp:$node_ip:1994 udp:$node_ip:3991 OIUC1 $arg
+coord_ip=$2
+riuc_ip=$3
+riuc_id=$4
+./riuc4 $riuc_id hcm "Motorola radio" 0 udp:$coord_ip:1994 udp:$riuc_ip:3991 OIUC1 $arg
 #  %s <id> <location> <desc> <radio_port> <gm_cs> <gmc_cs> <guest> <serial_file>
