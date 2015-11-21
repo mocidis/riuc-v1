@@ -329,7 +329,7 @@ int main(int argc, char *argv[]) {
                 node_repulse(&riuc_data.node[0], "OIUC");
                 break;
             default:
-                RETURN_IF_TRUE(1, "Unknown option\n");               
+                SHOW_LOG(1, "Unknown option\n");                            break;
         }   
 
     }
