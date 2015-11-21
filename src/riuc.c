@@ -5,11 +5,9 @@
 #include "gb-sender.h"
 #include "proto-constants.h"
 #include "riuc4_uart.h"
-
 #include <pjmedia-audiodev/audiodev.h>
 #include <pjmedia-audiodev/audiotest.h>
 
-typedef struct riuc_snd_device_s riuc_snd_device_t;
 typedef struct riuc_data_s riuc_data_t;
 
 #define MAX_NODE 1
@@ -128,7 +126,7 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 
     switch(signal) {
         case RIUC_SIGNAL_SQ:
-            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[0].id, port, 1);
+            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->sq);
             if (ustatus->sq == 1) {
                 node_start_session(&riuc_data.node[0]);
                 riuc4_enable_rx(&riuc_data.riuc4, port);
@@ -179,11 +177,14 @@ static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node
     adv_server_start(adv_server);
 }
 
-void *auto_register(void *node_data) {
-    node_t *node = (node_t *)node_data;   
+void *auto_register(void *riuc_data) {
+    int i;
+    riuc_data_t *riuc = (riuc_data_t *)riuc_data;   
     while (1) {
-        node_register(node);
-        node_invite(node, "OIUC");
+        for (i = 0; i < MAX_NODE; i++) {
+            node_register(riuc->node);
+            //node_invite(node, "OIUC");
+        }
         usleep(5*1000*1000);
     }
 }
@@ -201,14 +202,18 @@ int main(int argc, char *argv[]) {
     char *gmc_cs;
     char adv_cs[30];
     char gb_cs[30];
+    char gm_cs_tmp[30], gmc_cs_tmp[30], adv_cs_tmp[30];
 
     int adv_port = ADV_PORT;
     int gb_port = GB_PORT; 
-    int n;
+    int i, n;
 
     pj_caching_pool cp;
-    endpoint_t streamer;
-    endpoint_t receiver;
+    pj_pool_t *pool;
+    pjmedia_endpt *ep;
+
+    endpoint_t streamers[MAX_NODE];
+    endpoint_t receivers[MAX_NODE];
     adv_server_t adv_server;
 
     pthread_t thread;
@@ -225,45 +230,75 @@ int main(int argc, char *argv[]) {
 
     SHOW_LOG(5, "%s - %s - %s - %s - %s - %s - %s - %s - %s\n",argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], adv_cs, gb_cs, argv[8]);
 
+    /*------------ INIT ------------*/
+    pj_init();
+    pj_caching_pool_init(&cp, NULL, 10000);
+    pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
+
+    SHOW_LOG(2, "INIT CP AND POOL...DONE\n");
+
     /*------------ NODE ------------*/
-    memset(&riuc_data.node[0], 0, sizeof(riuc_data.node[0]));
-    init_adv_server(&adv_server, adv_cs, &riuc_data.node[0]);
-    node_init(&riuc_data.node[0], argv[1], argv[2], argv[3], atoi(argv[4]), gm_cs, gmc_cs, adv_cs);
-    node_add_adv_server(&riuc_data.node[0], &adv_server);
+#if 1
+    for (i = 0;i < MAX_NODE; i++) {
+        memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
+        memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
+        memset(adv_cs_tmp, 0, sizeof(adv_cs_tmp));
 
-    SHOW_LOG(2, "INIT NODE DONE...\n");
+        ansi_copy_str(gm_cs_tmp, gm_cs);
+        ansi_copy_str(adv_cs_tmp, adv_cs);
+        ansi_copy_str(gmc_cs_tmp, gmc_cs);
+      
+        n = strlen(gmc_cs);
+        gmc_cs_tmp[n-1] = i + 1+ '0';
 
+        //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
+        memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
+
+        init_adv_server(&adv_server, adv_cs_tmp, &riuc_data.node[i]);
+        node_init(&riuc_data.node[i], argv[1], argv[2], argv[3], i, gm_cs_tmp, gmc_cs_tmp, adv_cs_tmp);
+        node_add_adv_server(&riuc_data.node[i], &adv_server);
+    }
+
+    SHOW_LOG(2, "INIT NODE...DONE\n");
+#endif
     /*----------- GB --------------*/
+#if 1
     memset(&riuc_data.gb_sender, 0, sizeof(riuc_data.gb_sender));
     n = sprintf(gb_cs, "udp:%s:%d", GB_MIP, GB_PORT);
     gb_cs[n] = '\0';
     gb_sender_create(&riuc_data.gb_sender, gb_cs);
 
-    SHOW_LOG(2, "INIT GB SENDER DONE...\n");
+    SHOW_LOG(2, "INIT GB SENDER...DONE\n");
+#endif
     /*----------- RIUC4 --------------*/
+#if 1
     memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
     strncpy(riuc_data.serial_file, argv[8], strlen(argv[8]));
     riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
-    SHOW_LOG(2, "INIT RIUC4 DONE...\n");
+    SHOW_LOG(2, "INIT RIUC4...DONE\n");
+#endif
     /*----------- STREAM --------------*/
-    pj_init();
-    pj_caching_pool_init(&cp, NULL, 1024);
+#if 1
+    pjmedia_endpt_create(&cp.factory, NULL, 1, &ep);
+#if 1
+    pjmedia_codec_g711_init(ep);
 
-    node_media_config(&riuc_data.node[0], &streamer, &receiver);
-    riuc_data.node[0].streamer->pool = riuc_data.node[0].receiver->pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
+    for (i = 0; i < MAX_NODE; i++) {
+        node_media_config(&riuc_data.node[i], &streamers[i], &receivers[i]);
+        riuc_data.node[i].streamer->pool = pool;
+        riuc_data.node[i].receiver->pool = pool;
 
-    pjmedia_endpt_create(&cp.factory, NULL, 1, &riuc_data.node[0].streamer->ep);
-    riuc_data.node[0].receiver->ep = riuc_data.node[0].streamer->ep;
-    pjmedia_codec_g711_init(riuc_data.node[0].streamer->ep);
+        riuc_data.node[i].receiver->ep = ep;
+        riuc_data.node[0].streamer->ep = ep;
 
-    streamer_init(riuc_data.node[0].streamer, riuc_data.node[0].streamer->ep, riuc_data.node[0].receiver->pool);
-    receiver_init(riuc_data.node[0].receiver, riuc_data.node[0].receiver->ep, riuc_data.node[0].receiver->pool, 2);
+        streamer_init(riuc_data.node[i].streamer, riuc_data.node[i].streamer->ep, riuc_data.node[i].receiver->pool);
+        receiver_init(riuc_data.node[i].receiver, riuc_data.node[i].receiver->ep, riuc_data.node[i].receiver->pool, 2);
+    }
 
 #if 0
     set_snd_device(&riuc_data);
-
     streamer_config_dev_source(riuc_data.node[0].streamer, riuc_data.node[0].streamer_dev_idx);
     receiver_config_dev_sink(riuc_data.node[0].receiver, riuc_data.node[0].receiver_dev_idx);
 #endif
@@ -272,10 +307,11 @@ int main(int argc, char *argv[]) {
     streamer_config_dev_source(riuc_data.node[0].streamer, 2);
     receiver_config_dev_sink(riuc_data.node[0].receiver, 2);
 #endif
-    SHOW_LOG(2, "INIT STREAM DONE...\n");
+    SHOW_LOG(2, "INIT STREAM...DONE\n");
     /*---------------------------------*/
-    pthread_create(&thread, NULL, auto_register, &riuc_data.node[0]);
-
+    pthread_create(&thread, NULL, auto_register, &riuc_data);
+#endif
+#endif
     while(1) {
         dummy = fgets(option, sizeof(option), stdin);
 
