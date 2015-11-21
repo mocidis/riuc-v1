@@ -261,11 +261,17 @@ int main(int argc, char *argv[]) {
     streamer_init(riuc_data.node[0].streamer, riuc_data.node[0].streamer->ep, riuc_data.node[0].receiver->pool);
     receiver_init(riuc_data.node[0].receiver, riuc_data.node[0].receiver->ep, riuc_data.node[0].receiver->pool, 2);
 
+#if 0
     set_snd_device(&riuc_data);
 
     streamer_config_dev_source(riuc_data.node[0].streamer, riuc_data.node[0].streamer_dev_idx);
     receiver_config_dev_sink(riuc_data.node[0].receiver, riuc_data.node[0].receiver_dev_idx);
+#endif
 
+#if 1
+    streamer_config_dev_source(riuc_data.node[0].streamer, 2);
+    receiver_config_dev_sink(riuc_data.node[0].receiver, 2);
+#endif
     SHOW_LOG(2, "INIT STREAM DONE...\n");
     /*---------------------------------*/
     pthread_create(&thread, NULL, auto_register, &riuc_data.node[0]);
