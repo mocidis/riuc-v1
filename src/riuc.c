@@ -166,14 +166,14 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     }
 }
 
-static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node) {
+static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node, pj_pool_t *pool) {
     memset(adv_server, 0, sizeof(*adv_server));
 
     adv_server->on_request_f = &on_adv_info_riuc;
     adv_server->on_open_socket_f = &on_open_socket_adv_server;
     adv_server->user_data = node;
 
-    adv_server_init(adv_server, adv_cs);
+    adv_server_init(adv_server, adv_cs, pool);
     adv_server_start(adv_server);
 }
 
@@ -254,8 +254,8 @@ int main(int argc, char *argv[]) {
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
 
-        init_adv_server(&adv_server, adv_cs_tmp, &riuc_data.node[i]);
-        node_init(&riuc_data.node[i], argv[1], argv[2], argv[3], i, gm_cs_tmp, gmc_cs_tmp, adv_cs_tmp);
+        init_adv_server(&adv_server, adv_cs_tmp, &riuc_data.node[i], pool);
+        node_init(&riuc_data.node[i], argv[1], argv[2], argv[3], i, gm_cs_tmp, gmc_cs_tmp, pool);
         node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
 
