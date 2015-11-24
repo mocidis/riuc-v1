@@ -46,22 +46,22 @@ all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
 gen-gm: $(PROTOCOL_DIR)/$(GM_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $< $(USERVER_DIR)
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-gmc: $(PROTOCOL_DIR)/$(GMC_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $< $(USERVER_DIR)
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-adv: $(PROTOCOL_DIR)/$(ADV_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $< $(USERVER_DIR)
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-gb: $(PROTOCOL_DIR)/$(GB_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $< $(USERVER_DIR)
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 $(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o)
