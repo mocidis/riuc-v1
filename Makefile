@@ -2,10 +2,10 @@
 #RIUC4:=riuc4
 RIUC4_SRCS:=$(RIUC4).c
 
-APP_DIR:=.
-
 RIUC:=riuc
 RIUC_SRCS:=$(RIUC).c
+
+APP_DIR:=.
 
 C_DIR:=../common
 C_SRCS:=ansi-utils.c my-pjlib-utils.c
@@ -29,8 +29,8 @@ GEN_SRCS:=gm-client.c gmc-server.c adv-server.c gb-client.c
 
 JSONC_DIR:=../json-c/output
 
-SERIAL_DIR:= ../serial
-SERIAL_SRCS:= riuc4_uart.c serial_utils.c
+SERIAL_DIR := ../serial
+SERIAL_SRCS := riuc4_uart.c serial_utils.c
 
 HT_DIR:=../hash-table
 HT_SRCS:=hash-table.c
@@ -43,8 +43,8 @@ CFLAGS+=-I$(GEN_DIR)
 CFLAGS+=-I$(NODE_DIR)/include
 CFLAGS+=-I$(SERIAL_DIR)/include
 CFLAGS+=-I$(EP_DIR)/include
-CFLAGS+=-I$(APP_DIR)/include
 CFLAGS+=-I$(HT_DIR)/include
+CFLAGS+=-I$(APP_DIR)/include
 CFLAGS+=-D__ICS_INTEL__
 
 LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread -lsqlite3
@@ -53,22 +53,22 @@ all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
 gen-gm: $(PROTOCOL_DIR)/$(GM_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-gmc: $(PROTOCOL_DIR)/$(GMC_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-adv: $(PROTOCOL_DIR)/$(ADV_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 gen-gb: $(PROTOCOL_DIR)/$(GB_P)
 	mkdir -p gen
-	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
+	awk -v base_dir=$(USERVER_DIR) -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
 $(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o) $(HT_SRCS:.c=.o)
@@ -94,7 +94,6 @@ $(SERIAL_SRCS:.c=.o) : %.o : $(SERIAL_DIR)/src/%.c
 $(EP_SRCS:.c=.o) : %.o : $(EP_DIR)/src/%.c
 	gcc -o $@ -c $< $(CFLAGS)
 $(HT_SRCS:.c=.o) : %.o : $(HT_DIR)/src/%.c
-	gcc -c -o $@ $^ $(CFLAGS)
-
+	gcc -o $@ -c $< $(CFLAGS)
 clean:
 	rm -fr *.o gen gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
