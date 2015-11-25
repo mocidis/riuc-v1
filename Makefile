@@ -1,6 +1,8 @@
 .PHONY: all clean
-RIUC4:=riuc4
+#RIUC4:=riuc4
 RIUC4_SRCS:=$(RIUC4).c
+
+APP_DIR:=.
 
 RIUC:=riuc
 RIUC_SRCS:=$(RIUC).c
@@ -27,8 +29,11 @@ GEN_SRCS:=gm-client.c gmc-server.c adv-server.c gb-client.c
 
 JSONC_DIR:=../json-c/output
 
-SERIAL_DIR := ../serial
-SERIAL_SRCS := riuc4_uart.c serial_utils.c
+SERIAL_DIR:= ../serial
+SERIAL_SRCS:= riuc4_uart.c serial_utils.c
+
+HT_DIR:=../hash-table
+HT_SRCS:=hash-table.c
 
 CFLAGS:=$(shell pkg-config --cflags libpjproject) -fms-extensions
 CFLAGS+=-I$(C_DIR)/include
@@ -38,9 +43,11 @@ CFLAGS+=-I$(GEN_DIR)
 CFLAGS+=-I$(NODE_DIR)/include
 CFLAGS+=-I$(SERIAL_DIR)/include
 CFLAGS+=-I$(EP_DIR)/include
+CFLAGS+=-I$(APP_DIR)/include
+CFLAGS+=-I$(HT_DIR)/include
 CFLAGS+=-D__ICS_INTEL__
 
-LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread
+LIBS:= $(shell pkg-config --libs libpjproject) $(JSONC_DIR)/lib/libjson-c.a -lpthread -lsqlite3
 
 all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
@@ -64,10 +71,10 @@ gen-gb: $(PROTOCOL_DIR)/$(GB_P)
 	awk -f $(USERVER_DIR)/gen-tools/gen.awk $<
 	touch $@
 
-$(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o)
+$(RIUC): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o) $(HT_SRCS:.c=.o)
 	gcc -o $@ $^ $(LIBS)
 
-$(RIUC4): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC4_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o)
+$(RIUC4): $(NODE_SRCS:.c=.o) $(GEN_SRCS:.c=.o) $(C_SRCS:.c=.o) $(RIUC4_SRCS:.c=.o) $(SERIAL_SRCS:.c=.o) $(EP_SRCS:.c=.o) $(HT_SRCS:.c=.o)
 	gcc -o $@ $^ $(LIBS)
 
 $(NODE_SRCS:.c=.o): %.o: $(NODE_DIR)/src/%.c
@@ -86,5 +93,8 @@ $(SERIAL_SRCS:.c=.o) : %.o : $(SERIAL_DIR)/src/%.c
 	gcc -o $@ -c $< $(CFLAGS)
 $(EP_SRCS:.c=.o) : %.o : $(EP_DIR)/src/%.c
 	gcc -o $@ -c $< $(CFLAGS)
+$(HT_SRCS:.c=.o) : %.o : $(HT_DIR)/src/%.c
+	gcc -c -o $@ $^ $(CFLAGS)
+
 clean:
 	rm -fr *.o gen gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
