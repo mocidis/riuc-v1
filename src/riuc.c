@@ -280,16 +280,17 @@ int main(int argc, char *argv[]) {
                 node_stop_session(&riuc_data.node[0]);
                 break;
             case 'j':
-                node_invite(&riuc_data.node[0], "OIUC");
+                node_invite(&riuc_data.node[0], "FTW");
                 break;
             case 'l':
-                node_repulse(&riuc_data.node[0], "OIUC");
+                node_repulse(&riuc_data.node[0], "FTW");
                 break;
             case 'q':
                 f_quit = 1;
                 break;
             default:
-                SHOW_LOG(3, "Unknown option\n");               
+                SHOW_LOG(3, "Unknown option\n"); 
+                break;
         }   
 
     }
