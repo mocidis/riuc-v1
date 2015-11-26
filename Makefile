@@ -1,8 +1,8 @@
 .PHONY: all clean
-#RIUC4:=riuc4
+RIUC4:=riuc4
 RIUC4_SRCS:=$(RIUC4).c
 
-RIUC:=riuc
+#RIUC:=riuc
 RIUC_SRCS:=$(RIUC).c
 
 APP_DIR:=.
