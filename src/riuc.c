@@ -46,6 +46,10 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
         case RIUC_SIGNAL_PTT:
             gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->ptt);
             break;
+        case RIUC_SIGNAL_RX:
+            break;
+        case RIUC_SIGNAL_TX:
+            break;
         default:
             EXIT_IF_TRUE(1, "Unknow signal\n");
     } 
@@ -93,7 +97,7 @@ void *auto_register(void *riuc_data) {
     while (1) {
         for (i = 0; i < MAX_NODE; i++) {
             node_register(riuc->node);
-            //node_invite(node, "OIUC");
+            node_invite(riuc->node, "FTW");
         }
         usleep(5*1000*1000);
     }
@@ -207,6 +211,12 @@ int main(int argc, char *argv[]) {
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     SHOW_LOG(2, "INIT RIUC4...DONE\n");
+
+    for (i = 0; i < MAX_NODE; i++) {
+        riuc4_enable_rx(&riuc_data.riuc4, i);
+        riuc4_enable_tx(&riuc_data.riuc4, i);
+    }
+    SHOW_LOG(2, "ENABLE TX & RX...DONE\n");
 #endif
     /*----------- STREAM --------------*/
 #if 1
