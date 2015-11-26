@@ -101,7 +101,6 @@ int main(int argc, char *argv[]) {
     sqlite3 *db;
     char *sql, sql_cmd[100];
     sqlite3_stmt *stmt;
-    int rec_count = 0;
 
     char id[10], location[30], desc[50];
     char gm_cs[50], gmc_cs[50], adv_cs[50], gb_cs[50];
@@ -146,8 +145,6 @@ int main(int argc, char *argv[]) {
         snd_dev_r1 = sqlite3_column_int(stmt, 6);
         snd_dev_r2 = sqlite3_column_int(stmt, 7);
         snd_dev_r3 = sqlite3_column_int(stmt, 8);
-        
-        rec_count++;
     }
 
     n = sprintf(adv_cs, "udp:0.0.0.0:%d", adv_port);
