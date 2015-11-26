@@ -36,18 +36,15 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
             gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->sq);
             if (ustatus->sq == 1) {
                 node_start_session(&riuc_data.node[0]);
-                riuc4_enable_rx(&riuc_data.riuc4, port);
+                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, 1);
             }
             else {
                 node_stop_session(&riuc_data.node[0]);
-                riuc4_disable_rx(&riuc_data.riuc4, port);
+                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, 0);
             }
             break;
-        case RIUC_SIGNAL_TX:
-            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->tx);
-            break;
-        case RIUC_SIGNAL_RX:
-            gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->rx);
+        case RIUC_SIGNAL_PTT:
+            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->ptt);
             break;
         default:
             EXIT_IF_TRUE(1, "Unknow signal\n");
@@ -56,20 +53,26 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
-    SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
-    if(!node_has_media(node)) {
-        SHOW_LOG(1, "Node does not have media endpoints configured\n");
-        return;
-    }
-    if( request->adv_info.sdp_port > 0 ) {
-        receiver_stop(node->receiver);
-        receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
-        receiver_start(node->receiver);
-        riuc4_enable_tx(&riuc_data.riuc4, node->radio_port);
-    }
-    else {
-        receiver_stop(node->receiver);
-        riuc4_disable_tx(&riuc_data.riuc4, node->radio_port);
+
+    int find;
+    find = ht_get_item(&node->hash_table, request->adv_info.adv_owner );
+
+    if (find > 0) {
+        SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
+        if(!node_has_media(node)) {
+            SHOW_LOG(1, "Node does not have media endpoints configured\n");
+            return;
+        }
+        if( request->adv_info.sdp_port > 0 ) {
+            receiver_stop(node->receiver);
+            receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
+            receiver_start(node->receiver);
+            riuc4_on_ptt(&riuc_data.riuc4, node->radio_port);
+        }
+        else {
+            receiver_stop(node->receiver);
+            riuc4_off_ptt(&riuc_data.riuc4, node->radio_port);
+        }
     }
 }
 
@@ -160,7 +163,6 @@ int main(int argc, char *argv[]) {
     pj_init();
     pj_caching_pool_init(&cp, NULL, 10000);
     pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
-
 
     SHOW_LOG(2, "INIT CP AND POOL...DONE\n");
 
