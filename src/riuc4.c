@@ -59,7 +59,7 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     node_t *node = adv_server->user_data;
 
     int find;
-    find = ht_get_item(&node->hash_table, request->adv_info.adv_owner );
+    find = ht_get_item(&node->group_table, request->adv_info.adv_owner );
 
     if (find > 0) {
         SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);

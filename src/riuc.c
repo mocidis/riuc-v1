@@ -58,10 +58,10 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
 
-    int find;
-    find = ht_get_item(&node->hash_table, request->adv_info.adv_owner );
+    int found;
+    found = node_in_group(node, request->adv_info.adv_owner);
 
-    if (find > 0) {
+    if (found > 0) {
         SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
         if(!node_has_media(node)) {
             SHOW_LOG(1, "Node does not have media endpoints configured\n");
