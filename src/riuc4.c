@@ -95,8 +95,8 @@ void *auto_register(void *riuc_data) {
     riuc_data_t *riuc = (riuc_data_t *)riuc_data;   
     while (1) {
         for (i = 0; i < MAX_NODE; i++) {
-            node_register(riuc->node);
-            node_invite(riuc->node, "FTW");
+            node_register(&riuc->node[i]);
+            node_invite(&riuc->node[i], "FTW");
         }
         usleep(5*1000*1000);
     }
