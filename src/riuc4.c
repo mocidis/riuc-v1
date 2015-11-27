@@ -11,7 +11,7 @@
 
 typedef struct riuc_data_s riuc_data_t;
 
-#define MAX_NODE 1
+#define MAX_NODE 4
 
 struct riuc_data_s {
     node_t node[MAX_NODE];
@@ -58,10 +58,10 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
 
-    int find;
-    find = ht_get_item(&node->group_table, request->adv_info.adv_owner );
+    int found;
+    found = node_in_group(node, request->adv_info.adv_owner);
 
-    if (find > 0) {
+    if (found > 0) {
         SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
         if(!node_has_media(node)) {
             SHOW_LOG(1, "Node does not have media endpoints configured\n");
@@ -80,12 +80,11 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     }
 }
 
-static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node, pj_pool_t *pool) {
+static void init_adv_server(adv_server_t *adv_server, char *adv_cs, pj_pool_t *pool) {
     memset(adv_server, 0, sizeof(*adv_server));
 
     adv_server->on_request_f = &on_adv_info_riuc;
     adv_server->on_open_socket_f = &on_open_socket_adv_server;
-    adv_server->user_data = node;
 
     adv_server_init(adv_server, adv_cs, pool);
     adv_server_start(adv_server);
@@ -187,6 +186,9 @@ int main(int argc, char *argv[]) {
 
     /*------------ NODE ------------*/
 #if 1
+
+    init_adv_server(&adv_server, adv_cs, pool);
+
     for (i = 0;i < MAX_NODE; i++) {
         memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
         memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
@@ -195,22 +197,24 @@ int main(int argc, char *argv[]) {
         ansi_copy_str(gm_cs_tmp, gm_cs);
         ansi_copy_str(adv_cs_tmp, adv_cs);
         ansi_copy_str(gmc_cs_tmp, gmc_cs);
-      
+
         n = strlen(gmc_cs);
+
         gmc_cs_tmp[n-1] = i + 1+ '0';
+
+        //adv_server->user_data = riuc_data.node[i]
 
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
 
-        init_adv_server(&adv_server, adv_cs_tmp, &riuc_data.node[i], pool);
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
-        //node_add_adv_server(&riuc_data.node[i], &adv_server);
+        node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
 
     SHOW_LOG(2, "INIT NODE...DONE\n");
 #endif
     /*----------- GB --------------*/
-#if 0
+#if 1
     memset(&riuc_data.gb_sender, 0, sizeof(riuc_data.gb_sender));
     n = sprintf(gb_cs, "udp:%s:%d", GB_MIP, GB_PORT);
     gb_cs[n] = '\0';
@@ -219,14 +223,14 @@ int main(int argc, char *argv[]) {
     SHOW_LOG(2, "INIT GB SENDER...DONE\n");
 #endif
     /*----------- RIUC4 --------------*/
-#if 0
+#if 1
     memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
     strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
     riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     SHOW_LOG(2, "INIT RIUC4...DONE\n");
-#if 0
+#if 1
     for (i = 0; i < MAX_NODE; i++) {
         riuc4_enable_rx(&riuc_data.riuc4, i);
         sleep(1);
@@ -237,7 +241,7 @@ int main(int argc, char *argv[]) {
     SHOW_LOG(2, "ENABLE TX & RX...DONE\n");
 #endif
     /*----------- STREAM --------------*/
-#if 0
+#if 1
     SHOW_LOG(3, "INIT STREAM...START\n");
     pjmedia_endpt_create(&cp.factory, NULL, 1, &ep);
 #if 1
