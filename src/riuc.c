@@ -58,24 +58,26 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
 
-    int found;
-    found = node_in_group(node, request->adv_info.adv_owner);
+    int i, found;
+    for (i = 0;i < MAX_NODE; i++) {
+        found = node_in_group(&node[i], request->adv_info.adv_owner);
 
-    if (found > 0) {
-        SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
-        if(!node_has_media(node)) {
-            SHOW_LOG(1, "Node does not have media endpoints configured\n");
-            return;
-        }
-        if( request->adv_info.sdp_port > 0 ) {
-            receiver_stop(node->receiver);
-            receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
-            receiver_start(node->receiver);
-            riuc4_on_ptt(&riuc_data.riuc4, node->radio_port);
-        }
-        else {
-            receiver_stop(node->receiver);
-            riuc4_off_ptt(&riuc_data.riuc4, node->radio_port);
+        if (found > 0) {
+            SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
+            if(!node_has_media(&node[i])) {
+                SHOW_LOG(1, "Node does not have media endpoints configured\n");
+                return;
+            }
+            if( request->adv_info.sdp_port > 0 ) {
+                receiver_stop(node[i].receiver);
+                receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
+                receiver_start(node[i].receiver);
+                riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
+            }
+            else {
+                receiver_stop(node[i].receiver);
+                riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
+            }
         }
     }
 }
@@ -85,7 +87,7 @@ static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node
 
     adv_server->on_request_f = &on_adv_info_riuc;
     adv_server->on_open_socket_f = &on_open_socket_adv_server;
-    adv_server->user_data = node;
+    adv_server->user_data = riuc_data.node;
 
     adv_server_init(adv_server, adv_cs, pool);
     adv_server_start(adv_server);
