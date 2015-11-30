@@ -82,7 +82,24 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     }
 }
 
-static void init_adv_server(adv_server_t *adv_server, char *adv_cs, node_t *node, pj_pool_t *pool) {
+void on_leave_server(char *owner_id, char *adv_ip) {
+    int i, ret;
+    int count = 0;
+
+    for (i = 0; i < MAX_NODE; i++) {
+        ret = node_in_group(&riuc_data.node[i], owner_id);
+        if (ret <= 0) {
+            count++;
+        }
+    }
+
+    if (count == MAX_NODE) {
+        SHOW_LOG(3, "Leave %s\n", adv_ip);
+        adv_server_leave(riuc_data.node[0].adv_server, adv_ip);
+    }
+}
+
+static void init_adv_server(adv_server_t *adv_server, char *adv_cs, pj_pool_t *pool) {
     memset(adv_server, 0, sizeof(*adv_server));
 
     adv_server->on_request_f = &on_adv_info_riuc;
@@ -98,14 +115,23 @@ void *auto_register(void *riuc_data) {
     riuc_data_t *riuc = (riuc_data_t *)riuc_data;   
     while (1) {
         for (i = 0; i < MAX_NODE; i++) {
-            node_register(riuc->node);
-            node_invite(riuc->node, "FTW");
+            node_register(&riuc->node[i]);
+            node_invite(&riuc->node[i], "FTW");
         }
         usleep(5*1000*1000);
     }
 }
 
+void usage(char *app) {
+    printf("usage: %s <serial_file>\n", app);
+    exit(-1);
+}
+
 int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        usage(argv[0]);
+    }
+
     /*------------ CONFIG VARIABLES ------------*/
     sqlite3 *db;
     char *sql, sql_cmd[100];
@@ -133,6 +159,7 @@ int main(int argc, char *argv[]) {
     pthread_t thread;
     char *dummy, option[10];
     int i, n, input, f_quit = 0;
+    int snd_dev[4];
 
     /*-----------------------------------------*/
 
@@ -156,6 +183,11 @@ int main(int argc, char *argv[]) {
         snd_dev_r3 = sqlite3_column_int(stmt, 8);
     }
 
+    snd_dev[0] = snd_dev_r0;
+    snd_dev[1] = snd_dev_r1;
+    snd_dev[2] = snd_dev_r2;
+    snd_dev[3] = snd_dev_r3;
+
     n = sprintf(adv_cs, "udp:0.0.0.0:%d", adv_port);
     adv_cs[n] = '\0';
     n = sprintf(gb_cs, "udp:%s:%d",GB_MIP, gb_port);
@@ -174,6 +206,9 @@ int main(int argc, char *argv[]) {
 
     /*------------ NODE ------------*/
 #if 1
+
+    init_adv_server(&adv_server, adv_cs, pool);
+
     for (i = 0;i < MAX_NODE; i++) {
         memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
         memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
@@ -182,14 +217,14 @@ int main(int argc, char *argv[]) {
         ansi_copy_str(gm_cs_tmp, gm_cs);
         ansi_copy_str(adv_cs_tmp, adv_cs);
         ansi_copy_str(gmc_cs_tmp, gmc_cs);
-      
+
         n = strlen(gmc_cs);
+
         gmc_cs_tmp[n-1] = i + 1+ '0';
 
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
-
-        init_adv_server(&adv_server, adv_cs_tmp, &riuc_data.node[i], pool);
+        riuc_data.node[i].on_leave_server_f = &on_leave_server;
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
         node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
@@ -213,33 +248,45 @@ int main(int argc, char *argv[]) {
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     SHOW_LOG(2, "INIT RIUC4...DONE\n");
-
+#if 1
     for (i = 0; i < MAX_NODE; i++) {
         riuc4_enable_rx(&riuc_data.riuc4, i);
+        usleep(250*1000);
         riuc4_enable_tx(&riuc_data.riuc4, i);
+        usleep(250*1000);
     }
+#endif
     SHOW_LOG(2, "ENABLE TX & RX...DONE\n");
 #endif
     /*----------- STREAM --------------*/
 #if 1
+    SHOW_LOG(3, "INIT STREAM...START\n");
     pjmedia_endpt_create(&cp.factory, NULL, 1, &ep);
 #if 1
+    SHOW_LOG(3, "CODEC INIT\n");
     pjmedia_codec_g711_init(ep);
 
     for (i = 0; i < MAX_NODE; i++) {
+        SHOW_LOG(3, "NODE MEDIA CONFIG\n");
         node_media_config(&riuc_data.node[i], &streamers[i], &receivers[i]);
+        SHOW_LOG(3, "SET POOL\n");
         riuc_data.node[i].streamer->pool = pool;
         riuc_data.node[i].receiver->pool = pool;
-
+        
+        SHOW_LOG(3, "SET ENDPOINT\n");
         riuc_data.node[i].receiver->ep = ep;
-        riuc_data.node[0].streamer->ep = ep;
+        riuc_data.node[i].streamer->ep = ep;
 
+        SHOW_LOG(3, "INIT STREAMER & RECEIVER FOR NODE %d\n", i);
         streamer_init(riuc_data.node[i].streamer, riuc_data.node[i].streamer->ep, riuc_data.node[i].receiver->pool);
         receiver_init(riuc_data.node[i].receiver, riuc_data.node[i].receiver->ep, riuc_data.node[i].receiver->pool, 2);
     }
-
-    streamer_config_dev_source(riuc_data.node[0].streamer, snd_dev_r0);
-    receiver_config_dev_sink(riuc_data.node[0].receiver, snd_dev_r0);
+    
+    SHOW_LOG(3, "CONFIG SOUND DEVICE\n");
+    for (i = 0; i < MAX_NODE; i++) {
+        streamer_config_dev_source(riuc_data.node[i].streamer, snd_dev[i]);
+        receiver_config_dev_sink(riuc_data.node[i].receiver, snd_dev[i]);
+    }
 
     SHOW_LOG(2, "INIT STREAM...DONE\n");
     /*---------------------------------*/

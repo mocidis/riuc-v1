@@ -11,7 +11,7 @@
 
 typedef struct riuc_data_s riuc_data_t;
 
-#define MAX_NODE 4
+#define MAX_NODE 2
 
 struct riuc_data_s {
     node_t node[MAX_NODE];
@@ -79,6 +79,23 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
                 riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
         }
+    }
+}
+
+void on_leave_server(char *owner_id, char *adv_ip) {
+    int i, ret;
+    int count = 0;
+
+    for (i = 0; i < MAX_NODE; i++) {
+        ret = node_in_group(&riuc_data.node[i], owner_id);
+        if (ret <= 0) {
+            count++;
+        }
+    }
+
+    if (count == MAX_NODE) {
+        SHOW_LOG(3, "Leave %s\n", adv_ip);
+        adv_server_leave(riuc_data.node[0].adv_server, adv_ip);
     }
 }
 
@@ -205,11 +222,9 @@ int main(int argc, char *argv[]) {
 
         gmc_cs_tmp[n-1] = i + 1+ '0';
 
-        //adv_server->user_data = riuc_data.node[i]
-
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
-
+        riuc_data.node[i].on_leave_server_f = &on_leave_server;
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
         node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
@@ -236,9 +251,9 @@ int main(int argc, char *argv[]) {
 #if 1
     for (i = 0; i < MAX_NODE; i++) {
         riuc4_enable_rx(&riuc_data.riuc4, i);
-        sleep(1);
+        usleep(250*1000);
         riuc4_enable_tx(&riuc_data.riuc4, i);
-        sleep(1);
+        usleep(250*1000);
     }
 #endif
     SHOW_LOG(2, "ENABLE TX & RX...DONE\n");
