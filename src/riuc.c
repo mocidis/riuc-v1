@@ -33,18 +33,18 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 
     switch(signal) {
         case RIUC_SIGNAL_SQ:
-            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->sq);
+            gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->sq);
             if (ustatus->sq == 1) {
-                node_start_session(&riuc_data.node[0]);
-                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, 1);
+                node_start_session(&riuc_data.node[port]);
+                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[port].id, port, 1);
             }
             else {
-                node_stop_session(&riuc_data.node[0]);
-                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[0].id, port, 0);
+                node_stop_session(&riuc_data.node[port]);
+                gb_sender_report_rx(&riuc_data.gb_sender, riuc_data.node[port].id, port, 0);
             }
             break;
         case RIUC_SIGNAL_PTT:
-            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[0].id, port, ustatus->ptt);
+            gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->ptt);
             break;
         case RIUC_SIGNAL_RX:
             break;
@@ -63,14 +63,15 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
         found = node_in_group(&node[i], request->adv_info.adv_owner);
 
         if (found > 0) {
-            SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
+            SHOW_LOG(3, "New session: %s(%s:%d) On %s\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port, node[i].id);
             if(!node_has_media(&node[i])) {
                 SHOW_LOG(1, "Node does not have media endpoints configured\n");
                 return;
             }
+#if 1
             if( request->adv_info.sdp_port > 0 ) {
                 receiver_stop(node[i].receiver);
-                receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
+                receiver_config_stream(node[i].receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
                 receiver_start(node[i].receiver);
                 riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
@@ -78,6 +79,8 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
                 receiver_stop(node[i].receiver);
                 riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
+            usleep(250*1000);
+#endif
         }
     }
 }
@@ -168,9 +171,10 @@ int main(int argc, char *argv[]) {
     /*------------ LOAD CONFIG ------------*/
 
     CALL_SQLITE (open ("databases/riuc.db", &db));
-    sql = "SELECT *FROM riuc_config";
+    sql = "SELECT * FROM riuc_config";
     CALL_SQLITE (prepare_v2 (db, sql, strlen (sql) + 1, &stmt, NULL));
 
+    //WARNING: MAX NUMBER OF SOUND DEV = 4
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         strcpy(id, sqlite3_column_text(stmt, 0));
         strcpy(location, sqlite3_column_text(stmt, 1));
