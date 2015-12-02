@@ -85,7 +85,7 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     }
 }
 
-void on_leave_server(char *owner_id, char *adv_ip) {
+void on_leaving_server(char *owner_id, char *adv_ip) {
     int i, ret;
     int count = 0;
 
@@ -168,9 +168,60 @@ int main(int argc, char *argv[]) {
 
     SET_LOG_LEVEL(4);
 
-    /*------------ LOAD CONFIG ------------*/
+    /*------------ START ------------*/
+#if 1
+    SHOW_LOG(3, "Press '1': Set sound devices configure\nPress 's': Show databases\nPress 'Space': Load databases\n");
 
     CALL_SQLITE (open ("databases/riuc.db", &db));
+
+    while(!f_quit) {
+        dummy = fgets(option, sizeof(option), stdin);
+        switch(option[0]) {
+            case '1':
+                SHOW_LOG(3, "Set device index for each radio...\n");
+                for (i = 0; i < MAX_NODE; i++){
+                    SHOW_LOG(3, "Radio %d: ", i);
+                    dummy = fgets(option, sizeof(option), stdin);           
+                    input = atoi(&option[0]);
+                    n = sprintf(sql_cmd, "UPDATE riuc_config SET snd_dev_r%d =(?)", i);
+                    sql_cmd[n] = '\0';
+                    CALL_SQLITE (prepare_v2 (db, sql_cmd, strlen (sql_cmd) + 1, & stmt, NULL));
+                    CALL_SQLITE (bind_int (stmt, 1, input));
+                    CALL_SQLITE_EXPECT (step (stmt), DONE);
+                }
+                SHOW_LOG(3, "Config completed\n");               
+                f_quit = 1;
+                break;
+            case 's':
+                sql = "SELECT *FROM riuc_config";
+                CALL_SQLITE (prepare_v2 (db, sql, strlen (sql) + 1, &stmt, NULL));
+
+                while (sqlite3_step(stmt) == SQLITE_ROW) {
+                    printf("ID: %s\n", sqlite3_column_text(stmt, 0));
+                    printf("Location: %s\n", sqlite3_column_text(stmt, 1));
+                    printf("Desc: %s\n", sqlite3_column_text(stmt, 2));
+                    printf("GM_CS: %s\n", sqlite3_column_text(stmt, 3));
+                    printf("GMC_CS: %s\n", sqlite3_column_text(stmt, 4));
+                    printf("snd_dev_r0: %u\n", sqlite3_column_int(stmt, 5));
+                    printf("snd_dev_r1: %u\n", sqlite3_column_int(stmt, 6));
+                    printf("snd_dev_r2: %u\n", sqlite3_column_int(stmt, 7));
+                    printf("snd_dev_r3: %u\n", sqlite3_column_int(stmt, 8));
+                }
+                break;
+            case ' ':
+                f_quit = 1;
+                break;
+            case 'q':
+                return 0;
+            default:
+                SHOW_LOG(3, "Unknown option\n");
+        }
+    }
+    f_quit = 0;
+#endif
+    /*------------ LOAD CONFIG ------------*/
+
+    //CALL_SQLITE (open ("databases/riuc.db", &db));
     sql = "SELECT * FROM riuc_config";
     CALL_SQLITE (prepare_v2 (db, sql, strlen (sql) + 1, &stmt, NULL));
 
@@ -206,7 +257,27 @@ int main(int argc, char *argv[]) {
     pj_caching_pool_init(&cp, NULL, 10000);
     pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
 
-    SHOW_LOG(2, "INIT CP AND POOL...DONE\n");
+    SHOW_LOG(2, "======= INIT CP AND POOL...DONE =======\n");
+
+    /*----------- RIUC4 --------------*/
+#if 1
+    memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
+    strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
+    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
+    riuc4_start(&riuc_data.serial, riuc_data.serial_file);
+
+    SHOW_LOG(2, "======= INIT RIUC4...DONE =======\n");
+#if 1
+    for (i = 0; i < MAX_NODE; i++) {
+        riuc4_enable_rx(&riuc_data.riuc4, i);
+        usleep(250*1000);
+        riuc4_enable_tx(&riuc_data.riuc4, i);
+        usleep(250*1000);
+        //WARNING: still error at 200*1000 usecs !!!
+    }
+#endif
+    SHOW_LOG(2, "======= ENABLE TX & RX...DONE =======\n");
+#endif
 
     /*------------ NODE ------------*/
 #if 1
@@ -216,10 +287,8 @@ int main(int argc, char *argv[]) {
     for (i = 0;i < MAX_NODE; i++) {
         memset(gm_cs_tmp, 0, sizeof(gm_cs_tmp));
         memset(gmc_cs_tmp, 0, sizeof(gmc_cs_tmp));
-        memset(adv_cs_tmp, 0, sizeof(adv_cs_tmp));
 
         ansi_copy_str(gm_cs_tmp, gm_cs);
-        ansi_copy_str(adv_cs_tmp, adv_cs);
         ansi_copy_str(gmc_cs_tmp, gmc_cs);
 
         n = strlen(gmc_cs);
@@ -228,12 +297,12 @@ int main(int argc, char *argv[]) {
 
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
-        riuc_data.node[i].on_leave_server_f = &on_leave_server;
+        riuc_data.node[i].on_leaving_server_f = &on_leaving_server;
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
         node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
 
-    SHOW_LOG(2, "INIT NODE...DONE\n");
+    SHOW_LOG(2, "======= INIT NODE...DONE =======\n");
 #endif
     /*----------- GB --------------*/
 #if 1
@@ -242,29 +311,11 @@ int main(int argc, char *argv[]) {
     gb_cs[n] = '\0';
     gb_sender_create(&riuc_data.gb_sender, gb_cs);
 
-    SHOW_LOG(2, "INIT GB SENDER...DONE\n");
-#endif
-    /*----------- RIUC4 --------------*/
-#if 1
-    memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
-    strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
-    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
-    riuc4_start(&riuc_data.serial, riuc_data.serial_file);
-
-    SHOW_LOG(2, "INIT RIUC4...DONE\n");
-#if 1
-    for (i = 0; i < MAX_NODE; i++) {
-        riuc4_enable_rx(&riuc_data.riuc4, i);
-        usleep(250*1000);
-        riuc4_enable_tx(&riuc_data.riuc4, i);
-        usleep(250*1000);
-    }
-#endif
-    SHOW_LOG(2, "ENABLE TX & RX...DONE\n");
+    SHOW_LOG(2, "======= INIT GB SENDER...DONE =======\n");
 #endif
     /*----------- STREAM --------------*/
 #if 1
-    SHOW_LOG(3, "INIT STREAM...START\n");
+    SHOW_LOG(3, "======= INIT STREAM...START =======\n");
     pjmedia_endpt_create(&cp.factory, NULL, 1, &ep);
 #if 1
     SHOW_LOG(3, "CODEC INIT\n");
@@ -292,7 +343,7 @@ int main(int argc, char *argv[]) {
         receiver_config_dev_sink(riuc_data.node[i].receiver, snd_dev[i]);
     }
 
-    SHOW_LOG(2, "INIT STREAM...DONE\n");
+    SHOW_LOG(2, "======= INIT STREAM...DONE =======\n");
     /*---------------------------------*/
     pthread_create(&thread, NULL, auto_register, &riuc_data);
 #endif
@@ -302,8 +353,9 @@ int main(int argc, char *argv[]) {
 
         switch(option[0]) {
             case 'c':
+                SHOW_LOG(3, "Set device index for each radio...\n");
                 for (i = 0; i < MAX_NODE; i++){
-                    SHOW_LOG(3, "Set device index for each radio...\nRadio %d: ", i);
+                    SHOW_LOG(3, "Radio %d: ", i);
                     dummy = fgets(option, sizeof(option), stdin);           
                     input = atoi(&option[0]);
                     n = sprintf(sql_cmd, "UPDATE riuc_config SET snd_dev_r%d =(?)", i);
