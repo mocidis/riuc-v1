@@ -85,7 +85,7 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     }
 }
 
-void on_leave_server(char *owner_id, char *adv_ip) {
+void on_leaving_server(char *owner_id, char *adv_ip) {
     int i, ret;
     int count = 0;
 
@@ -168,9 +168,58 @@ int main(int argc, char *argv[]) {
 
     SET_LOG_LEVEL(4);
 
-    /*------------ LOAD CONFIG ------------*/
+    /*------------ START ------------*/
+#if 1
+    SHOW_LOG(3, "Press '1': Set sound devices configure\nPress 's': Show databases\nPress 'Space': Load databases\nPress 'q': Quit\n");
 
     CALL_SQLITE (open ("databases/riuc.db", &db));
+    while(!f_quit) {
+        dummy = fgets(option, sizeof(option), stdin);
+        switch(option[0]) {
+            case '1':
+                SHOW_LOG(3, "Set device index for each radio...\n");
+                for (i = 0; i < MAX_NODE; i++){
+                    SHOW_LOG(3, "Radio %d: ", i);
+                    dummy = fgets(option, sizeof(option), stdin);           
+                    input = atoi(&option[0]);
+                    n = sprintf(sql_cmd, "UPDATE riuc_config SET snd_dev_r%d =(?)", i);
+                    sql_cmd[n] = '\0';
+                    CALL_SQLITE (prepare_v2 (db, sql_cmd, strlen (sql_cmd) + 1, & stmt, NULL));
+                    CALL_SQLITE (bind_int (stmt, 1, input));
+                    CALL_SQLITE_EXPECT (step (stmt), DONE);
+                }
+                SHOW_LOG(3, "Config completed\n");               
+                f_quit = 1;
+                break;
+            case 's':
+                sql = "SELECT *FROM riuc_config";
+                CALL_SQLITE (prepare_v2 (db, sql, strlen (sql) + 1, &stmt, NULL));
+
+                while (sqlite3_step(stmt) == SQLITE_ROW) {
+                    printf("ID: %s\n", sqlite3_column_text(stmt, 0));
+                    printf("Location: %s\n", sqlite3_column_text(stmt, 1));
+                    printf("Desc: %s\n", sqlite3_column_text(stmt, 2));
+                    printf("GM_CS: %s\n", sqlite3_column_text(stmt, 3));
+                    printf("GMC_CS: %s\n", sqlite3_column_text(stmt, 4));
+                    printf("snd_dev_r0: %u\n", sqlite3_column_int(stmt, 5));
+                    printf("snd_dev_r1: %u\n", sqlite3_column_int(stmt, 6));
+                    printf("snd_dev_r2: %u\n", sqlite3_column_int(stmt, 7));
+                    printf("snd_dev_r3: %u\n", sqlite3_column_int(stmt, 8));
+                }
+                break;
+            case ' ':
+                f_quit = 1;
+                break;
+            case 'q':
+                return 0;
+            default:
+                SHOW_LOG(3, "Unknown option\n");
+        }
+    }
+    f_quit = 0;
+#endif
+    /*------------ LOAD CONFIG ------------*/
+    //CALL_SQLITE (open ("databases/riuc.db", &db));
     sql = "SELECT * FROM riuc_config";
     CALL_SQLITE (prepare_v2 (db, sql, strlen (sql) + 1, &stmt, NULL));
 
@@ -228,7 +277,7 @@ int main(int argc, char *argv[]) {
 
         //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
-        riuc_data.node[i].on_leave_server_f = &on_leave_server;
+        riuc_data.node[i].on_leaving_server_f = &on_leaving_server;
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
         node_add_adv_server(&riuc_data.node[i], &adv_server);
     }
