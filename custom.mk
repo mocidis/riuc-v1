@@ -1,10 +1,9 @@
-CROSS_COMPILE:=1
+CROSS_COMPILE:=2
 CROSS_ARM:=1
 CROSS_LINUX_X86:=2
 CROSS_MINGW_X86:=3
 CROSS_MACOS_X86_64:=4
 
-##### FOR ARM ####################
 ifeq ($(CROSS_COMPILE),$(CROSS_ARM))
 	CROSS_TOOL:=arm-linux-gnueabi-gcc
 	LIBS_DIR:=../libs/linux-armv7l
