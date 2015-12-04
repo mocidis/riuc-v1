@@ -46,7 +46,6 @@ CFLAGS+=-I$(EP_DIR)/include
 CFLAGS+=-I$(HT_DIR)/include
 CFLAGS+=-I$(APP_DIR)/include
 CFLAGS+=-D__ICS_INTEL__
-
 all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
 gen-gm: $(PROTOCOL_DIR)/$(GM_P)
