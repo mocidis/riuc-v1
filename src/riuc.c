@@ -297,7 +297,7 @@ int main(int argc, char *argv[]) {
 #if 1
     memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
     strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
-    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
+    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status, pool);
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     SHOW_LOG(2, "INIT RIUC4...DONE\n");
