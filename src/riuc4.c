@@ -263,7 +263,28 @@ int main(int argc, char *argv[]) {
     pj_caching_pool_init(&cp, NULL, 10000);
     pool = pj_pool_create(&cp.factory, "pool1", 1024, 1024, NULL);
 
-    SHOW_LOG(2, "INIT CP AND POOL...DONE\n");
+    SHOW_LOG(2, "======= INIT CP AND POOL...DONE =======\n");
+
+    /*----------- RIUC4 --------------*/
+#if 1
+    memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
+    strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
+    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status, pool);
+    riuc4_start(&riuc_data.serial, riuc_data.serial_file);
+
+    SHOW_LOG(2, "======= INIT RIUC4...DONE =======\n");
+#if 1
+    for (i = 0; i < MAX_NODE; i++) {
+        riuc4_enable_rx(&riuc_data.riuc4, i);
+        usleep(250*1000);
+        riuc4_enable_tx(&riuc_data.riuc4, i);
+        usleep(250*1000);
+        //WARNING: still error at 200*1000 usecs !!!
+    }
+#endif
+    SHOW_LOG(2, "======= ENABLE TX & RX...DONE =======\n");
+#endif
+>>>>>>> 6319bb5491632ad32abb5e80b0b1c72915f79453
 
     /*------------ NODE ------------*/
 #if 1
