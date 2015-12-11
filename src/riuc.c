@@ -63,20 +63,28 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
         found = node_in_group(&node[i], request->adv_info.adv_owner);
 
         if (found > 0) {
-            SHOW_LOG(3, "New session: %s(%s:%d) On %s\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port, node[i].id);
-            if(!node_has_media(&node[i])) {
+            SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
+            int i, idx; 
+
+            if(!node_has_media(node)) {
                 SHOW_LOG(1, "Node does not have media endpoints configured\n");
                 return;
             }
+
+            idx = ht_get_item(&node->group_table, request->adv_info.adv_owner);
 #if 1
             if( request->adv_info.sdp_port > 0 ) {
-                receiver_stop(node[i].receiver);
-                receiver_config_stream(node[i].receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, 0);
-                receiver_start(node[i].receiver);
+                receiver_stop(node->receiver, idx);
+
+                for (i = 0; i < node->receiver->nstreams; i++) {
+                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, i);
+                }
+
+                receiver_start(node->receiver);
                 riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
             else {
-                receiver_stop(node[i].receiver);
+                receiver_stop(node->receiver, idx);
                 riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
             usleep(250*1000);
@@ -297,7 +305,7 @@ int main(int argc, char *argv[]) {
 #if 1
     memset(riuc_data.serial_file, 0, sizeof(riuc_data.serial_file));
     strncpy(riuc_data.serial_file, argv[1], strlen(argv[1]));
-    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status);
+    riuc4_init(&riuc_data.serial, &riuc_data.riuc4, &on_riuc4_status, pool);
     riuc4_start(&riuc_data.serial, riuc_data.serial_file);
 
     SHOW_LOG(2, "INIT RIUC4...DONE\n");
