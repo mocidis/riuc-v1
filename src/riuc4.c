@@ -284,6 +284,7 @@ int main(int argc, char *argv[]) {
 #endif
     SHOW_LOG(2, "======= ENABLE TX & RX...DONE =======\n");
 #endif
+
     /*------------ NODE ------------*/
 #if 1
 
