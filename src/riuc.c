@@ -13,6 +13,8 @@ typedef struct riuc_data_s riuc_data_t;
 
 #define MAX_NODE 1
 
+int auto_invite = 0;
+
 struct riuc_data_s {
     node_t node[MAX_NODE];
     gb_sender_t gb_sender;
@@ -123,11 +125,17 @@ static void init_adv_server(adv_server_t *adv_server, char *adv_cs, pj_pool_t *p
 
 void *auto_register(void *riuc_data) {
     int i;
+    int loop = 1;
     riuc_data_t *riuc = (riuc_data_t *)riuc_data;   
     while (1) {
         for (i = 0; i < MAX_NODE; i++) {
             node_register(&riuc->node[i]);
-            node_invite(&riuc->node[i], "FTW");
+            if (loop) {
+                node_invite(&riuc->node[i], "FTW");
+                if (!auto_invite) {
+                    loop = 0;
+                }
+            }
         }
         usleep(5*1000*1000);
     }
@@ -242,6 +250,7 @@ int main(int argc, char *argv[]) {
         snd_dev_r1 = sqlite3_column_int(stmt, 6);
         snd_dev_r2 = sqlite3_column_int(stmt, 7);
         snd_dev_r3 = sqlite3_column_int(stmt, 8);
+        auto_invite = sqlite3_column_int(stmt, 9);
     }
 
     snd_dev[0] = snd_dev_r0;
@@ -255,7 +264,7 @@ int main(int argc, char *argv[]) {
     gb_cs[n] = '\0';
     
     SHOW_LOG(3, "========= LOADED CONFIG ========\n");
-    SHOW_LOG(3, "ID: %s\nLocation: %s\nDesc: %s\nGM_CS: %s\nGMC_CS: %s\nADV_CS: %s\nGB_CS: %s\nsnd_r0: %d\nsnd_r1: %d\nsnd_r2: %d\nsnd_r3: %d\n", id, location, desc, gm_cs, gmc_cs, adv_cs, gm_cs, snd_dev_r0, snd_dev_r1, snd_dev_r2, snd_dev_r3);
+    SHOW_LOG(3, "ID: %s\nDesc: %s\nGM_CS: %s\nGMC_CS: %s\nADV_CS: %s\nGB_CS: %s\nsnd_r0: %d\nsnd_r1: %d\nsnd_r2: %d\nsnd_r3: %dAuto invite: %d\n", id, desc, gm_cs, gmc_cs, adv_cs, gm_cs, snd_dev_r0, snd_dev_r1, snd_dev_r2, snd_dev_r3, auto_invite);
     SHOW_LOG(3, "================================\n");
 
     /*------------ INIT ------------*/
