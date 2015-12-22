@@ -60,11 +60,13 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
 
+    SHOW_LOG(3, "owner = %s\n", request->adv_info.adv_owner);
+
     int i, found;
     for (i = 0;i < MAX_NODE; i++) {
         found = node_in_group(&node[i], request->adv_info.adv_owner);
-
-        if (found > 0) {
+        SHOW_LOG(3, "found = %d\n", found);
+        if (found >= 0) {
             SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
             int i, idx; 
 
@@ -78,9 +80,9 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
             if( request->adv_info.sdp_port > 0 ) {
                 receiver_stop(node->receiver, idx);
 
-                for (i = 0; i < node->receiver->nstreams; i++) {
-                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, i);
-                }
+                //for (i = 0; i < node->receiver->nstreams; i++) {
+                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, idx);
+                //}
 
                 receiver_start(node->receiver);
                 riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);

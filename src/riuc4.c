@@ -11,7 +11,7 @@
 
 typedef struct riuc_data_s riuc_data_t;
 
-#define MAX_NODE 2
+#define MAX_NODE 4
 
 int auto_invite = 0;
 
@@ -35,6 +35,7 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 
     switch(signal) {
         case RIUC_SIGNAL_SQ:
+            SHOW_LOG(3, "Received SQ signal\n");
             gb_sender_report_sq(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->sq);
             if (ustatus->sq == 1) {
                 node_start_session(&riuc_data.node[port]);
@@ -46,11 +47,14 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
             }
             break;
         case RIUC_SIGNAL_PTT:
+            SHOW_LOG(3, "Received PTT signal\n");
             gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->ptt);
             break;
         case RIUC_SIGNAL_RX:
+            SHOW_LOG(3, "Received RX signal\n");
             break;
         case RIUC_SIGNAL_TX:
+            SHOW_LOG(3, "Received TX signal\n");
             break;
         default:
             EXIT_IF_TRUE(1, "Unknow signal\n");
@@ -61,26 +65,27 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     node_t *node = adv_server->user_data;
 
     int i, found;
-    for (i = 0;i < MAX_NODE; i++) {
+    int idx; 
+    for (i = 0; i < MAX_NODE; i++) {
         found = node_in_group(&node[i], request->adv_info.adv_owner);
 
-        if (found > 0) {
+        if (found >= 0) {
             SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
-            int i, idx; 
 
             if(!node_has_media(node)) {
                 SHOW_LOG(1, "Node does not have media endpoints configured\n");
                 return;
             }
 
-            idx = ht_get_item(&node->group_table, request->adv_info.adv_owner);
+            idx = ht_get_item(&node[i].group_table, request->adv_info.adv_owner);
+            SHOW_LOG(3, "idx(ht_get_item): %d for owner: %s\n", idx, request->adv_info.adv_owner);
 #if 1
             if( request->adv_info.sdp_port > 0 ) {
                 receiver_stop(node->receiver, idx);
 
-                for (i = 0; i < node->receiver->nstreams; i++) {
-                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, i);
-                }
+                //for (i = 0; i < node->receiver->nstreams; i++) {
+                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, idx);
+                //}
 
                 receiver_start(node->receiver);
                 riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
@@ -101,7 +106,7 @@ void on_leaving_server(char *owner_id, char *adv_ip) {
 
     for (i = 0; i < MAX_NODE; i++) {
         ret = node_in_group(&riuc_data.node[i], owner_id);
-        if (ret <= 0) {
+        if (ret < 0) {
             count++;
         }
     }

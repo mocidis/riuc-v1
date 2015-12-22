@@ -8,4 +8,5 @@ elif [ $# -gt 1 ]; then
 	echo "Example: $0 192.168.2.55" 
 	exit 1
 fi
+scp riuc root@$remote_addr:/home/root/
 scp riuc4 root@$remote_addr:/home/root/
