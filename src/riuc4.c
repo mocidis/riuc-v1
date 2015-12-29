@@ -11,7 +11,7 @@
 
 typedef struct riuc_data_s riuc_data_t;
 
-#define MAX_NODE 4
+#define MAX_NODE 2
 
 int auto_invite = 0;
 
@@ -47,7 +47,7 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
             }
             break;
         case RIUC_SIGNAL_PTT:
-            SHOW_LOG(3, "Received PTT signal\n");
+            SHOW_LOG(3, "Received PTT signal - node[%d]\n", port);
             gb_sender_report_tx(&riuc_data.gb_sender, riuc_data.node[port].id, port, ustatus->ptt);
             break;
         case RIUC_SIGNAL_RX:
@@ -66,13 +66,25 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
 
     int i, found;
     int idx; 
+
+    for (i = 0; i < MAX_NODE; i++) {
+        SHOW_LOG(3, "LIST TABLE\n");
+        ht_list_item(&node[i].group_table);
+        SHOW_LOG(3, "=========== NODE :%s ========\n", node[i].id);
+        found = node_in_group(&node[i], "OIUC-FTW");
+        SHOW_LOG(3, "node_id: %s, adv_owner:%s, found:%d \n", node[i].id, "OIUC-FTW", found);
+        found = node_in_group(&node[i], "OIUC-UBUNTU");
+        SHOW_LOG(3, "node_id: %s, adv_owner:%s, found:%d \n", node[i].id, "OIUC-UBUNTU", found);
+        SHOW_LOG(3, "=============================\n");
+    }
+
     for (i = 0; i < MAX_NODE; i++) {
         found = node_in_group(&node[i], request->adv_info.adv_owner);
-
+    
         if (found >= 0) {
             SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
 
-            if(!node_has_media(node)) {
+            if(!node_has_media(&node[i])) {
                 SHOW_LOG(1, "Node does not have media endpoints configured\n");
                 return;
             }
@@ -81,17 +93,17 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
             SHOW_LOG(3, "idx(ht_get_item): %d for owner: %s\n", idx, request->adv_info.adv_owner);
 #if 1
             if( request->adv_info.sdp_port > 0 ) {
-                receiver_stop(node->receiver, idx);
+                receiver_stop(node[i].receiver, idx);
 
                 //for (i = 0; i < node->receiver->nstreams; i++) {
-                    receiver_config_stream(node->receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, idx);
+                    receiver_config_stream(node[i].receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, idx);
                 //}
 
-                receiver_start(node->receiver);
+                receiver_start(node[i].receiver);
                 riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
             else {
-                receiver_stop(node->receiver, idx);
+                receiver_stop(node[i].receiver, idx);
                 riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
             }
             usleep(250*1000);
@@ -136,7 +148,7 @@ void *auto_register(void *riuc_data) {
         for (i = 0; i < MAX_NODE; i++) {
             node_register(&riuc->node[i]);
             if (loop) {
-                node_invite(&riuc->node[i], "FTW");
+                node_invite(&riuc->node[i], "OIUC");
             }
         }
         if (!auto_invite) {

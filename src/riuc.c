@@ -64,7 +64,7 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
 
     int i, found;
     for (i = 0;i < MAX_NODE; i++) {
-        found = node_in_group(&node[i], request->adv_info.adv_owner);
+        found = node_in_group(node, request->adv_info.adv_owner);
         SHOW_LOG(3, "found = %d\n", found);
         if (found >= 0) {
             SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
@@ -133,7 +133,7 @@ void *auto_register(void *riuc_data) {
         for (i = 0; i < MAX_NODE; i++) {
             node_register(&riuc->node[i]);
             if (loop) {
-                node_invite(&riuc->node[i], "FTW");
+                node_invite(&riuc->node[i], "OIUC");
                 if (!auto_invite) {
                     loop = 0;
                 }
@@ -184,7 +184,7 @@ int main(int argc, char *argv[]) {
 
     /*-----------------------------------------*/
 
-    SET_LOG_LEVEL(4);
+    SET_LOG_LEVEL(5);
 
     /*------------ START ------------*/
 #if 1
