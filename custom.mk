@@ -6,9 +6,9 @@ LINUX_X86_64:=3
 MINGW_X86:=4
 MACOS_X86_64:=5
 ifeq ($(CROSS_COMPILE),$(ARMV7L))
-	CROSS_TOOL:=arm-none-linux-gnueabi-gcc
+	CROSS_TOOL:=arm-linux-gnueabihf-gcc
 	LIBS_DIR:=../libs/linux-armv7l
-	LIBS:= -L$(LIBS_DIR)/lib $(LIBS_DIR)/lib/libjson-c.a -lpjsua2-arm-none-linux-gnueabi -lstdc++ -lpjsua-arm-none-linux-gnueabi -lpjsip-ua-arm-none-linux-gnueabi -lpjsip-simple-arm-none-linux-gnueabi -lpjsip-arm-none-linux-gnueabi -lpjmedia-codec-arm-none-linux-gnueabi -lpjmedia-arm-none-linux-gnueabi -lpjmedia-videodev-arm-none-linux-gnueabi -lpjmedia-audiodev-arm-none-linux-gnueabi -lpjmedia-arm-none-linux-gnueabi -lpjnath-arm-none-linux-gnueabi -lpjlib-util-arm-none-linux-gnueabi -lsrtp-arm-none-linux-gnueabi -lresample-arm-none-linux-gnueabi -lgsmcodec-arm-none-linux-gnueabi -lspeex-arm-none-linux-gnueabi -lilbccodec-arm-none-linux-gnueabi -lg7221codec-arm-none-linux-gnueabi -lportaudio-arm-none-linux-gnueabi -lpj-arm-none-linux-gnueabi -lm -lrt -lpthread -lsqlite3 -lasound
+	LIBS:= -L$(LIBS_DIR)/lib $(LIBS_DIR)/lib/libjson-c.a -lpjsua2-arm-unknown-linux-gnueabihf -lstdc++ -lpjsua-arm-unknown-linux-gnueabihf -lpjsip-ua-arm-unknown-linux-gnueabihf -lpjsip-simple-arm-unknown-linux-gnueabihf -lpjsip-arm-unknown-linux-gnueabihf -lpjmedia-codec-arm-unknown-linux-gnueabihf -lpjmedia-arm-unknown-linux-gnueabihf -lpjmedia-videodev-arm-unknown-linux-gnueabihf -lpjmedia-audiodev-arm-unknown-linux-gnueabihf -lpjmedia-arm-unknown-linux-gnueabihf -lpjnath-arm-unknown-linux-gnueabihf -lpjlib-util-arm-unknown-linux-gnueabihf -lsrtp-arm-unknown-linux-gnueabihf -lresample-arm-unknown-linux-gnueabihf -lgsmcodec-arm-unknown-linux-gnueabihf -lspeex-arm-unknown-linux-gnueabihf -lilbccodec-arm-unknown-linux-gnueabihf -lg7221codec-arm-unknown-linux-gnueabihf -lportaudio-arm-unknown-linux-gnueabihf -lpj-arm-unknown-linux-gnueabihf -lm -lrt -lpthread -lsqlite3 -lasound
 endif
 ifeq ($(CROSS_COMPILE),$(LINUX_X86))
 	CROSS_TOOL:=gcc
