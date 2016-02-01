@@ -11,7 +11,7 @@
 
 typedef struct riuc_data_s riuc_data_t;
 
-#define MAX_NODE 2
+#define MAX_NODE 4
 
 int auto_invite = 0;
 
@@ -160,12 +160,12 @@ void *auto_register(void *riuc_data) {
 }
 
 void usage(char *app) {
-    printf("usage: %s <serial_file>\n", app);
+    printf("usage: %s <serial_file> <database_file>\n", app);
     exit(-1);
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
+    if (argc < 3) {
         usage(argv[0]);
     }
 
@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
 #if 1
     SHOW_LOG(3, "Press '1': Set sound devices configure\nPress 's': Show databases\nPress 'Space': Load databases\nPress 'q': Quit\n");
 
-    CALL_SQLITE (open ("databases/riuc.db", &db));
+    CALL_SQLITE (open (argv[2], &db));
     while(!f_quit) {
         dummy = fgets(option, sizeof(option), stdin);
         switch(option[0]) {
