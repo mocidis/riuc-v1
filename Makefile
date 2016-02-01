@@ -9,7 +9,7 @@ RIUC_SRCS:=$(RIUC).c
 APP_DIR:=.
 
 C_DIR:=../common
-C_SRCS:=ansi-utils.c my-pjlib-utils.c
+C_SRCS:=ansi-utils.c my-pjlib-utils.c lvcode.c my-openssl.c
 
 USERVER_DIR:=../userver
 
@@ -46,6 +46,9 @@ CFLAGS+=-I$(EP_DIR)/include
 CFLAGS+=-I$(HT_DIR)/include
 CFLAGS+=-I$(APP_DIR)/include
 CFLAGS+=-D__ICS_INTEL__
+
+LIBS+=-lcrypto
+
 all: gen-gm gen-gmc gen-adv gen-gb $(RIUC) $(RIUC4)
 
 gen-gm: $(PROTOCOL_DIR)/$(GM_P)
