@@ -3,7 +3,7 @@ include custom.mk
 RIUC4:=riuc4
 RIUC4_SRCS:=$(RIUC4).c
 
-RIUC:=riuc
+#RIUC:=riuc
 RIUC_SRCS:=$(RIUC).c
 
 APP_DIR:=.
@@ -34,7 +34,7 @@ SERIAL_SRCS := riuc4_uart.c serial_utils.c
 HT_DIR:=../hash-table
 HT_SRCS:=hash-table.c
 
-CFLAGS:=-DPJ_AUTOCONF=1 -O2 -DPJ_IS_BIG_ENDIAN=0 -DPJ_IS_LITTLE_ENDIAN=1 -fms-extensions
+CFLAGS:=-g -DPJ_AUTOCONF=1 -O2 -DPJ_IS_BIG_ENDIAN=0 -DPJ_IS_LITTLE_ENDIAN=1 -fms-extensions
 CFLAGS+=-I$(LIBS_DIR)/include
 CFLAGS+=-I$(C_DIR)/include
 CFLAGS+=-I$(LIBS_DIR)/include/json-c

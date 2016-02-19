@@ -64,15 +64,17 @@ void on_riuc4_status(int port, riuc4_signal_t signal, uart4_status_t *ustatus) {
 void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *caddr_str) {
     node_t *node = adv_server->user_data;
 
-    int i, found;
-    int idx; 
+    int i;
+    void *found = NULL;
+    int idx;
+    int *pidx;
 
     for (i = 0; i < MAX_NODE; i++) {
         SHOW_LOG(3, "LIST TABLE\n");
         ht_list_item(&node[i].group_table);
         SHOW_LOG(3, "=========== NODE :%s ========\n", node[i].id);
-        found = node_in_group(&node[i], "OIUC-FTW");
-        SHOW_LOG(3, "node_id: %s, adv_owner:%s, found:%d \n", node[i].id, "OIUC-FTW", found);
+        found = node_in_group(&node[i], "OIUC-FEDORA");
+        SHOW_LOG(3, "node_id: %s, adv_owner:%s, found:%d \n", node[i].id, "OIUC-FEDORA", found);
         found = node_in_group(&node[i], "OIUC-UBUNTU");
         SHOW_LOG(3, "node_id: %s, adv_owner:%s, found:%d \n", node[i].id, "OIUC-UBUNTU", found);
         SHOW_LOG(3, "=============================\n");
@@ -81,7 +83,7 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
     for (i = 0; i < MAX_NODE; i++) {
         found = node_in_group(&node[i], request->adv_info.adv_owner);
     
-        if (found >= 0) {
+        if (found != NULL) {
             SHOW_LOG(3, "New session: %s(%s:%d)\n", request->adv_info.adv_owner, request->adv_info.sdp_mip, request->adv_info.sdp_port);
 
             if(!node_has_media(&node[i])) {
@@ -89,36 +91,47 @@ void on_adv_info_riuc(adv_server_t *adv_server, adv_request_t *request, char *ca
                 return;
             }
 
-            idx = ht_get_item(&node[i].group_table, request->adv_info.adv_owner);
-            SHOW_LOG(3, "idx(ht_get_item): %d for owner: %s\n", idx, request->adv_info.adv_owner);
+            pidx = (int *)ht_get_item(&node[i].group_table, request->adv_info.adv_owner);
+            if (pidx != NULL) {
+                idx = *pidx;
+                //idx = *((int *)ht_get_item(&node[i].group_table, request->adv_info.adv_owner);
+                SHOW_LOG(3, "idx(ht_get_item): %d for owner: %s\n", idx, request->adv_info.adv_owner);
 #if 1
-            if( request->adv_info.sdp_port > 0 ) {
-                receiver_stop(node[i].receiver, idx);
+                if( request->adv_info.sdp_port > 0 ) {
+                    receiver_stop(node[i].receiver, idx);
 
-                //for (i = 0; i < node->receiver->nstreams; i++) {
+                    //for (i = 0; i < node->receiver->nstreams; i++) {
                     receiver_config_stream(node[i].receiver, request->adv_info.sdp_mip, request->adv_info.sdp_port, idx);
-                //}
+                    //}
 
-                receiver_start(node[i].receiver);
-                riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
+                    receiver_start(node[i].receiver);
+                    riuc4_on_ptt(&riuc_data.riuc4, node[i].radio_port);
+                }
+                else {
+                    receiver_stop(node[i].receiver, idx);
+                    riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
+                }
+                usleep(250*1000);
             }
-            else {
-                receiver_stop(node[i].receiver, idx);
-                riuc4_off_ptt(&riuc_data.riuc4, node[i].radio_port);
-            }
-            usleep(250*1000);
 #endif
         }
     }
 }
 
 void on_leaving_server(char *owner_id, char *adv_ip) {
+    int *pret;
     int i, ret;
     int count = 0;
-
     for (i = 0; i < MAX_NODE; i++) {
-        ret = node_in_group(&riuc_data.node[i], owner_id);
-        if (ret < 0) {
+        pret = (int *)ht_get_item(&riuc_data.node[i].group_table, (void *)owner_id);
+
+        if (pret != NULL) {
+            ret = *pret;
+            if (ret < 0) {
+                count++;
+            }
+        }
+        if (pret == NULL) {
             count++;
         }
     }
@@ -310,7 +323,6 @@ int main(int argc, char *argv[]) {
 
         gmc_cs_tmp[n-1] = i + 1+ '0';
 
-        //printf("gmc_cs_tmp = %s\n", gmc_cs_tmp);
         memset(&riuc_data.node[i], 0, sizeof(riuc_data.node[i]));
         riuc_data.node[i].on_leaving_server_f = &on_leaving_server;
         node_init(&riuc_data.node[i], id, location, desc, i, gm_cs_tmp, gmc_cs_tmp, pool);
