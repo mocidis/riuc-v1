@@ -136,7 +136,7 @@ static void init_adv_server(adv_server_t *adv_server, char *adv_cs, pj_pool_t *p
     adv_server->on_open_socket_f = &on_open_socket_adv_server;
     adv_server->user_data = riuc_data.node;
 
-    adv_server_init(adv_server, adv_cs, pool);
+    adv_server_init(adv_server, adv_cs, pool, NULL);
     adv_server_start(adv_server);
 }
 
